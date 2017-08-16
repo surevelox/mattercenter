@@ -1,8 +1,11 @@
-﻿(function () {
+﻿
+/// <reference path="../../lib/jquery/dist/jquery.js" />
+///
+(function () {
     'use strict;'
     var app = angular.module("matterMain");
-    app.controller('DocumentDashBoardController', ['$scope', '$state', '$interval', '$stateParams', 'api', '$timeout', 'documentDashBoardResource', '$rootScope', 'uiGridConstants', '$location', '$http', 'commonFunctions', '$window', '$filter',
-        function documentDashBoardController($scope, $state, $interval, $stateParams, api, $timeout, documentDashBoardResource, $rootScope, uiGridConstants, $location, $http, commonFunctions, $window, $filter) {
+    app.controller('DocumentDashBoardController', ['$scope', '$state', '$interval', '$stateParams', 'api', '$timeout', 'documentDashBoardResource', '$rootScope', 'uiGridConstants', '$location', '$http', 'commonFunctions', '$window', '$filter','$anchorScroll',
+    function documentDashBoardController($scope, $state, $interval, $stateParams, api, $timeout, documentDashBoardResource, $rootScope, uiGridConstants, $location, $http, commonFunctions, $window, $filter, $anchorScroll) {
             //#region For declaring variables.
             var vm = this;
             vm.selected = undefined;
@@ -76,6 +79,8 @@
                 $event.stopPropagation();
                 vm.clientdrop = false;
                 vm.clientdropvisible = false;
+                $timeout(function () { angular.element('#matterClients').focus(); }, 500);
+                
             }
 
             vm.collapseDateControls = function () {
@@ -136,6 +141,37 @@
             };
             //#endregion
 
+            //#region to announce document type to Jaws tool.
+            vm.getDocumentName = function (docExtension) {
+                var docName = '';
+                switch (docExtension) {
+                    case 'docx':
+                        docName = 'Word document';
+                        break;
+                    case 'eml':
+                        docName = 'Email document';
+                        break;
+                    case 'xls':
+                        docName = 'Excel document';
+                        break;
+                    case 'txt':
+                        docName = 'Text document';
+                        break;
+                    case 'pdf':
+                        docName = 'PDF document';
+                        break;
+                    case 'zip':
+                        docName = 'Zip file document';
+                        break;
+                    default:
+                        docName = docExtension
+                        break;
+                }
+
+                return docName;
+            }
+            //#endregion
+
             //#region To get the column schema and populate in column collection for grid with sorting of column display
             var columnDefs1 = [];
             columnDefs1.push({
@@ -170,8 +206,8 @@
             columnDefs1.push({
                 field: 'pin',
                 width: '6%',
-                displayName: '',
-                cellTemplate: '<div class="ui-grid-cell-contents pad0 pull-right"><img title={{row.entity.pinType}} src="../Images/{{row.entity.pinType}}-666.png" ng-click="grid.appScope.vm.pinorunpin($event, row.entity)"/></div>',
+                displayName: 'Pin/Unpin',
+                cellTemplate: '<div class="ui-grid-cell-contents pad0 pull-right"><img aria-label="This image button will allow the user to pin or unpin the current document" title={{row.entity.pinType}} src="../Images/{{row.entity.pinType}}-666.png" ng-click="grid.appScope.vm.pinorunpin($event, row.entity)"/></div>',
                 enableColumnMenu: false,
                 position: 75
             });
@@ -278,7 +314,7 @@
             //#endregion
 
             //#region Functionality to check all checkboxes inside grid
-            vm.toggleCheckerAll = function (checked) {
+            vm.toggleCheckerAll = function (checked, event) {                
                 vm.cartelements = [];
                 vm.documentsCheckedCount = 0;
                 for (var i = 0; i < vm.documentGridOptions.data.length; i++) {
@@ -625,6 +661,7 @@
 
             //#region Request for search documents object
             vm.searchDocument = function (val) {
+                $("[uib-typeahead-popup].dropdown-menu").css("display", "block");
                 var searchUserRequest = {
                     Client: {
                         Url: configs.global.repositoryUrl
@@ -640,6 +677,7 @@
 
             //#region  Searching document files
             vm.searchDocumentFile = function (val) {
+                $("[uib-typeahead-popup].dropdown-menu").css("display", "block");
                 var searchDocumentRequest = {
                     Client: {
                         //ToDo: Need to read from config.js
@@ -931,6 +969,7 @@
             vm.pinorunpin = function (e, currentRowData) {
                 vm.popupContainer = false;
                 if (e.currentTarget.src.toLowerCase().indexOf("images/pin-666.png") > 0) {
+                    jQuery.a11yfy.assertiveAnnounce("Pinning document " + currentRowData.documentName)
                     e.currentTarget.src = "../Images/loadingGreen.gif";
                     var pinRequest = {
                         Client: {
@@ -961,6 +1000,7 @@
                     }
                     pinDocuments(pinRequest, function (response) {
                         if (response.isDocumentPinned) {
+                            jQuery.a11yfy.assertiveAnnounce("Successfully pinned document " + currentRowData.documentName)
                             e.currentTarget.src = "../images/unpin-666.png";
                             e.currentTarget.title = "unpin";
                             vm.pinDocumentCount = parseInt(vm.pinDocumentCount, 10) + 1;
@@ -970,6 +1010,7 @@
                 }
                 else if (e.currentTarget.src.toLowerCase().indexOf("images/unpin-666.png") > 0) {
                     e.currentTarget.src = "../Images/loadingGreen.gif";
+                    jQuery.a11yfy.assertiveAnnounce("Unpinning document " + currentRowData.documentName)
                     var unpinRequest = {
                         Client: {
                             Url: configs.global.repositoryUrl
@@ -980,6 +1021,7 @@
                     }
                     UnpinDocuments(unpinRequest, function (response) {
                         if (response.isDocumentUnPinned) {
+                            jQuery.a11yfy.assertiveAnnounce("Successfully unpinned document " + currentRowData.documentName)
                             vm.pinDocumentCount = parseInt(vm.pinDocumentCount, 10) - 1;
                             if (vm.tabClicked.toLowerCase().indexOf("pinned") >= 0) {
                                 e.currentTarget.src = "../images/unpin-666.png";
@@ -1005,20 +1047,25 @@
             //#region This event is going to fire when the user clicks onm "Select All" and "UnSelect All" links
             vm.checkAll = function (checkAll, type, $event) {
                 $event.stopPropagation();
+                var checkAnnounc = checkAll ? "checked" : "unchecked";
                 if (type === vm.documentDashboardConfigs.AdvSearchLabel1FunctionParameterText) {
                     angular.forEach(vm.clients, function (client) {
                         client.Selected = checkAll;
                     });
+                    jQuery.a11yfy.assertiveAnnounce("all clients are " + checkAnnounc);
                 }
             }
             //#endregion
 
             //#region Closing and Opening searchbar dropdowns
             vm.showupward = function ($event) {
+                $("[uib-typeahead-popup].dropdown-menu").css("display", "none");
                 $event.stopPropagation();
                 vm.searchdrop = true;
                 vm.downwarddrop = false;
                 vm.upwarddrop = true;
+                jQuery.a11yfy.assertiveAnnounce("Collapsing advance search section");
+                $timeout(function () { angular.element('#matterClients').focus(); }, 500);
             }
 
             vm.showdownward = function ($event) {
@@ -1026,6 +1073,8 @@
                 vm.searchdrop = false;
                 vm.upwarddrop = false;
                 vm.downwarddrop = true;
+                jQuery.a11yfy.assertiveAnnounce("Exapnding advance search section");
+
             }
             //#endregion
 
@@ -1033,11 +1082,15 @@
             vm.showsortby = function ($event) {
                 $event.stopPropagation();
                 if (!vm.sortbydropvisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding context menu");
                     vm.sortbydrop = true;
                     vm.sortbydropvisible = true;
+                    $timeout(function () { angular.element('#menuSortBy').focus() }, 500);
                 } else {
+                    jQuery.a11yfy.assertiveAnnounce("Collapsing context menu");
                     vm.sortbydrop = false;
                     vm.sortbydropvisible = false;
+                    $timeout(function () { angular.element('#sortIconCombo').focus() }, 500);
                 }
             }
             //#endregion
@@ -1046,12 +1099,14 @@
             vm.dateOptions = {
 
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             };
 
             vm.endDateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             }
 
             $scope.$watch('vm.startDate', function (newval, oldval) {
@@ -1139,12 +1194,15 @@
             vm.showclientdrop = function ($event) {
                 $event.stopPropagation();
                 if (!vm.clientdropvisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding the clients list popup");
                     if (vm.clients === undefined) {
+                        jQuery.a11yfy.assertiveAnnounce("Loading the clients");
                         vm.lazyloaderdocumentclient = false;
                         getTaxonomyDetailsForClient(optionsForClientGroup, function (response) {
                             vm.clients = response.clientTerms;
                             vm.clientdrop = true;
                             vm.clientdropvisible = true;
+                            jQuery.a11yfy.assertiveAnnounce("clients list loaded");
                             if (vm.selectedClients !== undefined && vm.selectedClients.length > 0) {
                                 vm.customSelection(vm.documentDashboardConfigs.AdvSearchLabel1FunctionParameterText);
                             }
@@ -1161,6 +1219,7 @@
                 } else if (vm.clientdropvisible && $event.type === "keyup") {
                     vm.customSelection(vm.documentDashboardConfigs.AdvSearchLabel1FunctionParameterText);
                 } else {
+                    jQuery.a11yfy.assertiveAnnounce("Collapsing the clients list popup");
                     vm.clientdrop = false;
                     vm.clientdropvisible = false;
                     vm.lazyloaderdocumentclient = true;
@@ -1177,6 +1236,7 @@
                         angular.forEach(selectdClients, function (clientInput) {
                             if (clientInput.toString().length > 0 && client.name.toString().toLowerCase().indexOf(clientInput.toString().toLowerCase()) !== -1) {
                                 client.Selected = true;
+                                jQuery.a11yfy.assertiveAnnounce(client.name + "checked");
                             }
                         })
                     });
@@ -1202,6 +1262,7 @@
 
             //#region For Sorting by Alphebatical or Created date
             vm.FilterByType = function () {
+                vm.beforeSortingAccessibilityMessage(documentRequest);
                 vm.lazyloaderdashboard = false;
                 vm.divuigrid = false;
                 vm.nodata = false;
@@ -1216,6 +1277,7 @@
                         if (response && response.length > 0) {
                             vm.documentGridOptions.data = response;
                             vm.getDocumentCounts();
+                            vm.beforeSortingAccessibilityMessage(documentRequest);
                         }
                         else {
                             vm.getDocumentCounts()
@@ -1232,6 +1294,7 @@
 
                         } else {
                             vm.showDocumentAsPinOrUnpin(response, documentRequest);
+                            vm.beforeSortingAccessibilityMessage(documentRequest);
                             if (!$scope.$$phase) {
                                 $scope.$apply();
                             }
@@ -1393,6 +1456,7 @@
                                 vm.divuigrid = true;
                                 vm.displaypagination = true;
                                 $interval(function () { vm.setPaginationHeight() }, 300, vm.divuigrid);
+                                $anchorScroll();
                             });
                             if (!$scope.$$phase) {
                                 $scope.$apply();
@@ -1452,6 +1516,7 @@
                                 }
                                 vm.displaypagination = true;
                                 $interval(function () { vm.setPaginationHeight() }, 300, vm.divuigrid);
+                                $anchorScroll();
                             });
                             if (!$scope.$$phase) {
                                 $scope.$apply();
@@ -1587,7 +1652,10 @@
                 }
             }
             //#endregion
-
+            vm.disableNavTab = function () {
+                vm.showNavTab = false;
+                vm.showInnerNav = true;;
+            }
             //#region To show selected tab
             vm.showSelectedTabs = function (name, count) {
                 vm.selectedTab = name;
@@ -1600,9 +1668,13 @@
                 } else {
                     vm.getPinnedDocuments();
                 }
+                vm.showNavTab = false;
+                vm.showInnerNav = true;;
             }
             //#endregion
-
+            vm.ariaMessage = function (message) {
+                jQuery.a11yfy.assertiveAnnounce(message);
+            }
             //#region Exporting to Excel Test
             vm.export = function () {
                 var exportMatterSearchRequest = {
@@ -1728,13 +1800,26 @@
             //Binding click event to div
             angular.element('#mainDivContainer').bind('click', function (event) {
                 // Check if we have not clicked on the search box
-                if (!($(event.target).parents().andSelf().is('.dropdown-menu'))) {
+                if (!($(event.target).parents().addBack().is('.dropdown-menu'))) {
                     // Hide/collapse your search box, autocomplete or whatever you need to do
                     angular.element('.dropdown-menu').hide('');
                 }
             });
 
-
+            vm.beforeSortingAccessibilityMessage = function (searchRequest) {
+                if (searchRequest.SearchObject.Sort.Direction == 0) {
+                    jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+                } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                    jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+                }
+            }
+            vm.afterSortingAccessibilityMessage = function (searchRequest) {
+                if (searchRequest.SearchObject.Sort.Direction == 0) {
+                    jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+                } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                    jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+                }
+            }
             //#region For removing the active class from the tabs that are not selected
             vm.hideTabs = function ($event) {
                 if (!vm.lazyloaderdashboard) {
@@ -1754,6 +1839,16 @@
                 }
             }
             //#endregion
+
+
+            vm.toggleCheckerForKeyDown = function (temp, currentRow, event) {
+                temp = temp ? false : true;
+                currentRow.checker = temp;
+            }
+
+            vm.pageLoadCompleted = function () {
+                jQuery.a11yfy.assertiveAnnounce("Documents dashboard page loaded successfully");
+            }
         }
     ]);
 })();

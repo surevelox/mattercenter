@@ -460,7 +460,7 @@ _::-moz-svg-foreign-content, :root .mainArea .notificationContainer {
         /*height: 32px;*/
         margin-left: 0px;
         position: absolute;
-        width: 108px;
+        width: 150px;
         padding: 0 0 32px 0;
     }
 
@@ -508,8 +508,9 @@ _::-moz-svg-foreign-content, :root .mainArea .notificationContainer {
 }
 
 #chkConflictCheckParent {
-    min-width: 100%;
+    min-width: 90%;
     max-width: 100%;
+    margin-top:1px;
 }
 
 .appNames {
@@ -544,7 +545,7 @@ h1.specificName {
 }
 
 .mandatory {
-    color: red;
+    color: #800000;
 }
 
 .selectDefaultContentTypeMessage {
@@ -571,7 +572,7 @@ h1.specificName {
     line-height: 15pt;
     min-width: 70px;
     text-align: center;
-    width: 110px;
+    width: 120px;
     margin-left: 485px;
 }
 
@@ -1363,6 +1364,25 @@ _::-moz-svg-foreign-content, :root .ddlRoleAssignList, :root .ddlPermAssignList 
         max-width: 295px;
     min-width: 295px;
 }
+ .divBlockAdj{
+            margin-top: 7px;
+    }
+
+@media (min-width: 861px)  and (max-width: 991px) {
+      .divBlockAdj{
+            margin-top: 30px !important;
+    }
+}
+@media (min-width: 992px)  and (max-width: 1105px) {
+      .divBlockAdj{
+            margin-top: 50px !important;
+    }
+}
+@media (min-width: 1106px)  and (max-width: 1292px) {
+      .divBlockAdj{
+            margin-top: 30px !important;
+    }
+}
 
 @media (max-width: 860px) {
     .container {
@@ -1377,7 +1397,10 @@ _::-moz-svg-foreign-content, :root .ddlRoleAssignList, :root .ddlPermAssignList 
 
     .sectionStep {
         max-width: 327px;
-         min-width:290px
+         min-width:290px;            
+    }
+    .divBlockAdj{
+            margin-top: 30px !important;
     }
 
     .ddlRoleAssignList {

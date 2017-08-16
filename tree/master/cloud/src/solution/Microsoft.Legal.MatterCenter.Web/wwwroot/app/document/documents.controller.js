@@ -40,6 +40,7 @@
         vm.previousDocAuthorValue = '';
         vm.previousDocCheckOutUserValue = '';
         vm.assetsuccess = false;
+        
         //Onload show ui grid and hide error div
         //start
         vm.divuigrid = false;
@@ -188,7 +189,10 @@
             }
         };
         //#endregion
-
+        //#region function to annouce text in Jaws for screen reader.
+        vm.ariaMessage = function (message) {
+            jQuery.a11yfy.assertiveAnnounce(message);
+        }
         //#region To get the column header name
         vm.switchFuction = function (columnName) {
             var displayColumn = [];
@@ -235,7 +239,7 @@
         //#endregion
 
         //#region To get the column schema and populate in column collection for grid with sorting of column display
-        $templateCache.put('coldefheadertemplate.html', "<div><div role='button' class='ui-grid-cell-contents ui-grid-header-cell-primary-focus' col-index='renderIndex'><span class='ui-grid-header-cell-label ng-binding' title='Click to sort by'>{{ col.colDef.displayName }}<span id='asc{{col.colDef.field}}' style='float:right;display:none' class='padl10px'>↑</span><span id='desc{{col.colDef.field}}' style='float:right;display:none' class='padlf10'>↓</span></span></div></div>");
+        $templateCache.put('coldefheadertemplate.html', "<div style='overflow: hidden; -ms-text-overflow: ellipsis; max-width: 160px; padding:3px 0px 4px 0px'   role='columnheader' style='height: 30px; padding-top:3px;margin-top: 4px;' col-index='renderIndex'><span tabindex='0'  ng-keydown='($event.keyCode==13||$event.keyCode==32)?grid.appScope.sortChangedDocument(grid,[col]):null' ng-focus='grid.appScope.vm.ariaMessage(\"Click to sort by \" ) ' class='ui-grid-cell-contents ui-grid-header-cell-primary-focus ui-grid-header-cell-label ng-binding'   title='Column name'>{{ col.colDef.displayName }}<span id='asc{{col.colDef.field}}' style='float:right;display:none' class='padl10px'>↑</span><span id='desc{{col.colDef.field}}' style='float:right;display:none' class='padlf10'>↓</span></span></div>");
 
         //Declaring column collection object.
         // Collection requires as columns defination will be read through appsettings files and - 
@@ -260,7 +264,7 @@
                     width: value.width,
                     enableHiding: value.enableHiding,
                     cellTemplate: value.cellTemplate,
-                    headerCellTemplate: value.headerCellTemplate == "Custom" ? $templateCache.get('coldefheadertemplate.html').replace('Click to sort by', displaycolVal[1]) : value.headerCellTemplate,
+                    headerCellTemplate: value.headerCellTemplate == "Custom" ? $templateCache.get('coldefheadertemplate.html').replace('Column name', displaycolVal[1]) : value.headerCellTemplate,
                     position: value.position,
                     cellClass: value.cellClass,
                     headerCellClass: value.headerCellClass,
@@ -308,6 +312,7 @@
                         vm.checker = false;
                         row.entity.checker = false;
                     }
+                    vm.currentRow = row.entity;
                     isOpenedInOutlook();
                 });
                 $animate.enabled(gridApi.grid.element, false);
@@ -1319,7 +1324,7 @@
 
         //#region Functionality to get results bases of "All,My,Pinned" document selection in dropdown
         //#region for setting the document name in dropdown
-        vm.SetDocuments = function (id, name) {
+        vm.SetDocuments = function (id, name) {           
             vm.pinnedorunpinned = false;
             vm.clearAllFilter();
             vm.clearAllFiltersofSort();
@@ -1344,6 +1349,7 @@
                 vm.clearAllFiltersofSort();
             }
             if (id == 1) {
+                jQuery.a11yfy.assertiveAnnounce("fetching documents which are uploaded by other users");
                 searchRequest.SearchObject.PageNumber = 1;
                 if (!vm.pinnedorunpinned) {
                     vm.responseNull = false;
@@ -1361,6 +1367,7 @@
                         vm.gridOptions.data = response;
                         vm.lazyloader = true;
                         vm.nodata = true;
+                        jQuery.a11yfy.assertiveAnnounce("No records found");
                     } else {
                         if (vm.isOutlook) {
                             vm.isOutlookAsAttachment(vm.isOutlook);
@@ -1370,6 +1377,7 @@
                         vm.responseNull = false;
                         searchRequest.SearchObject.Sort.SortAndFilterPinnedData = false;
                         vm.showDocumentAsPinOrUnpin(searchRequest, response)
+                        jQuery.a11yfy.assertiveAnnounce("fetched documents which are uploaded by other users");
                     }
                 });
 
@@ -1390,8 +1398,10 @@
                         vm.ModiFiedDateSort = "asc";
                     }
                 }
+                jQuery.a11yfy.assertiveAnnounce("fetching documents which are uploaded by current login user");
                 get(searchRequest, function (response) {
                     if (response == "" && response.length == 0) {
+                        jQuery.a11yfy.assertiveAnnounce("No records found");
                         vm.gridOptions.data = response;
                         vm.lazyloader = true;
                         vm.divuigrid = true;
@@ -1426,7 +1436,9 @@
                                     $scope.$apply();
                                 }
                             }
+                            jQuery.a11yfy.assertiveAnnounce("fetched documents which are uploaded by current login user");
                             vm.divuigrid = true;
+                            forExpandingGridMenu();
                             $timeout(function () { vm.lazyloader = true; }, 800, angular.element(".ui-grid-canvas").css('visibility') != 'hidden');
                             if (!vm.globalSettings.isBackwardCompatible) {
                                 $interval(function () { vm.showSortExp(); }, 3000, angular.element(".ui-grid-canvas").css('visibility') != 'hidden');
@@ -1445,11 +1457,13 @@
                     searchRequest.SearchObject.Sort.Direction = 0;
                     searchRequest.SearchObject.Sort.SortAndFilterPinnedData = false;
                 }
+                jQuery.a11yfy.assertiveAnnounce("fetching documents which are pinned by current login user");
                 getPinnedDocuments(searchRequest, function (response) {
                     if (response == "") {
                         vm.gridOptions.data = response;
                         vm.lazyloader = true;
                         vm.nodata = true;
+                        jQuery.a11yfy.assertiveAnnounce("No records found");
                     } else {
                         if (vm.isOutlook) {
                             vm.isOutlookAsAttachment(vm.isOutlook);
@@ -1463,6 +1477,7 @@
                         });
                         vm.gridOptions.data = response;
                         vm.lazyloader = true;
+                        jQuery.a11yfy.assertiveAnnounce("fetched documents which are pinned by current login user");
                     }
                 });
             }
@@ -1492,7 +1507,10 @@
             }
             UnpinDocuments(unpinRequest, function (response) {
                 if (response.isDocumentUnPinned) {
+                    
                     $timeout(function () { vm.GetDocuments(vm.documentid); $interval(function () { vm.showSortExp(); }, 5000, 3); }, 500);
+                    jQuery.a11yfy.assertiveAnnounce("Successfully unpinned document");
+                    
                 }
             });
         }
@@ -1534,7 +1552,9 @@
             }
             pinDocuments(pinRequest, function (response) {
                 if (response.isDocumentPinned) {
-                    $timeout(function () { vm.GetDocuments(vm.documentid); $interval(function () { vm.showSortExp(); }, 5000, 3);}, 500);
+                    
+                    $timeout(function () { vm.GetDocuments(vm.documentid); $interval(function () { vm.showSortExp(); }, 5000, 3); }, 500);
+                    jQuery.a11yfy.assertiveAnnounce("Successfully pinned document")
                 }
             });
         }
@@ -1561,12 +1581,14 @@
         //#region For declaring modifiedstartdate and modifiedenddate variable.
         vm.modDateOptions = {
             formatYear: 'yy',
-            maxDate: new Date()
+            maxDate: new Date(),
+            shortcutPropagation: true
         };
 
         vm.modEndDateOptions = {
             formatYear: 'yy',
-            maxDate: new Date()
+            maxDate: new Date(),
+            shortcutPropagation: true
         }
 
         $scope.$watch('vm.modStartDate', function (newval, oldval) {
@@ -1650,12 +1672,14 @@
         //Start
         vm.dateOptions = {
             formatYear: 'yy',
-            maxDate: new Date()
+            maxDate: new Date(),
+            shortcutPropagation: true
         };
 
         vm.endDateOptions = {
             formatYear: 'yy',
-            maxDate: new Date()
+            maxDate: new Date(),
+            shortcutPropagation: true
         }
 
         $scope.$watch('vm.startDate', function (newval, oldval) {
@@ -1740,6 +1764,7 @@
 
         //#region Functionality to do filter on option selected for my and pinned or all documnets
         vm.FilterByType = function () {
+            vm.beforeSortingAccessibilityMessage(searchRequest);
             if (vm.documentid == 3) {
                 var pinnedDocumentsRequest = {
                     Url: configs.global.repositoryUrl
@@ -1747,13 +1772,14 @@
                 searchRequest.SearchObject.Sort.SortAndFilterPinnedData = true;
                 vm.gridOptions.data = [];
                 getPinnedDocuments(searchRequest, function (response) {
-
+                   
                     if (response == "" || response.errorCode == "500") {
                         vm.gridOptions.data = response;
                         vm.divuigrid = true;
                         vm.nodata = true;
                         $scope.errorMessage = response.message;
                     } else {
+                        vm.afterSortingAccessibilityMessage(searchRequest);
                         vm.divuigrid = true;
                         vm.nodata = false;
                         angular.forEach(response, function (res) {
@@ -1769,6 +1795,7 @@
                 });
             }
             else {
+               
                 get(searchRequest, function (response) {
                     if (response.errorCode == "404") {
                         vm.divuigrid = false;
@@ -1790,6 +1817,7 @@
                                     });
                                 });
                                 vm.gridOptions.data = response;
+                                vm.afterSortingAccessibilityMessage(searchRequest);
                                 vm.divuigrid = true;
                                 if (!$scope.$$phase) {
                                     $scope.$apply();
@@ -1827,7 +1855,7 @@
         //#endregion
 
         //#region for sorting in direction selected by user
-        vm.documentSortBy = function (byproperty, direction, bycolumn, sortexp, sortby) {
+        vm.documentSortBy = function (byproperty, direction, bycolumn, sortexp, sortby) {           
             vm.pagenumber = 1;
             searchRequest.SearchObject.PageNumber = 1;
             searchRequest.SearchObject.Sort.ByProperty = byproperty;
@@ -1889,7 +1917,7 @@
                     vm.lazyloader = false;
                     vm.divuigrid = false;
                     if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentName.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined   ) {
                             if (vm.FileNameSort == undefined || vm.FileNameSort == "asc") {
                                 vm.FileNameSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyFileName, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1903,7 +1931,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentClient.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.DocumentClientSort == undefined || vm.DocumentClientSort == "asc") {
                                 vm.DocumentClientSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyDocumentClientName, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1917,7 +1945,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentClientId.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.DocumentClientIDSort == undefined || vm.DocumentClientIDSort == "asc") {
                                 vm.DocumentClientIDSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyDocumentClientId, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1930,7 +1958,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentModifiedDate.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.ModiFiedDateSort == undefined || vm.ModiFiedDateSort == "asc") {
                                 vm.ModiFiedDateSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyDocumentLastModifiedTime, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1943,7 +1971,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentOwner.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.AuthorSort == undefined || vm.AuthorSort == "asc") {
                                 vm.AuthorSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyAuthor, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1956,7 +1984,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentPracticeGroup.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.DocumentPracticeGroupSort == undefined || vm.DocumentPracticeGroupSort == "asc") {
                                 vm.DocumentPracticeGroupSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyPracticeGroup, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1970,7 +1998,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentVersion.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.VersionSort == undefined || vm.VersionSort == "asc") {
                                 vm.VersionSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyDocumentVersion, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1983,7 +2011,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentCheckoutUser.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.CheckoutSort == undefined || vm.CheckoutSort == "asc") {
                                 vm.CheckoutSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyDocumentCheckOutUser, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -1996,7 +2024,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentCreatedDate.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.CreatedSort == undefined || vm.CreatedSort == "asc") {
                                 vm.CreatedSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyCreated, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -2009,7 +2037,7 @@
                         }
                     }
                     else if (sortColumns[0].name.trim().toLowerCase() == configs.search.searchColumnsUIPickerForDocument.documentMatterName.keyName.trim().toLowerCase()) {
-                        if (sortColumns[0].sort != undefined) {
+                        if (sortColumns[0].sort != undefined  ) {
                             if (vm.CreatedSort == undefined || vm.CreatedSort == "asc") {
                                 vm.CreatedSort = "desc";
                                 vm.documentSortBy(vm.configSearchContent.ManagedPropertyMatterName, 0, sortColumns[0].name, sortColumns[0].field, "asc");
@@ -2108,43 +2136,54 @@
                 }
                 if (checked) {
                     $scope.gridApi.selection.selectAllRows();
+                    jQuery.a11yfy.assertiveAnnounce("all document rows in page are selected");
                 }
                 else {
                     $scope.gridApi.selection.clearSelectedRows();
                     vm.selectedRows = [];
                     vm.showErrorAttachmentInfo = false;
+                    jQuery.a11yfy.assertiveAnnounce("all selected document rows in page are unselected");
 
                 }
             }
+            
             isOpenedInOutlook();
-            $scope.$apply();
+            if (!$scope.$$phase) {
+                $scope.$apply();
+            }
 
         };
         //#endregion
 
         //#region Functionality to get document assets.
         vm.getDocumentAssets = function (row) {
+           
+        }
+        //#endregion
+
+        //#region Functionality to get document URL.
+        vm.gotoDocumentUrl = function (documentInfo) {
+            var row = vm.currentRow && vm.currentRow != "" ? vm.currentRow : documentInfo;
+            vm.lazyloader = false;
             vm.assetsuccess = false;
+            var url = row.documentClientUrl;
             var Client = {
-                Id: (row.entity.documentParentUrl.replace("/Forms/AllItems.aspx", "") + "/" + row.entity.documentName + "." + row.entity.documentExtension).replace(configs.uri.SPOsiteURL, ""),
-                Name: row.entity.documentMatterUrl.replace(configs.uri.SPOsiteURL, "").replace(".aspx", "").replace("/sitepages/", "/"),
-                Url: row.entity.documentClientUrl
+                Id: (row.documentParentUrl.replace("/Forms/AllItems.aspx", "") + "/" + row.documentName + "." + row.documentExtension).replace(configs.uri.SPOsiteURL, ""),
+                Name: row.documentMatterUrl.replace(configs.uri.SPOsiteURL, "").replace(".aspx", "").replace("/sitepages/", "/"),
+                Url: row.documentClientUrl
             }
             GetAssets(Client, function (response) {
                 vm.listguid = response.listInternalName;
                 vm.docguid = response.documentGuid;
                 vm.assetsuccess = true;
+                vm.lazyloader = true;
+                if (vm.assetsuccess) {
+                    $window.open(configs.global.repositoryUrl + "/SitePages/documentDetails.aspx?client=" + url.replace(configs.uri.SPOsiteURL, "") + "&listguid=" + vm.listguid + "&docguid=" + vm.docguid, 'viewmatterwindow', 'toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=850,height=500');
+                } else {
+                    $timeout(function () { $window.open(configs.global.repositoryUrl + "/SitePages/documentDetails.aspx?client=" + url.replace(configs.uri.SPOsiteURL, "") + "&listguid=" + vm.listguid + "&docguid=" + vm.docguid, 'viewmatterwindow', 'toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=850,height=500'); }, 1500);
+                }
             });
-        }
-        //#endregion
-
-        //#region Functionality to get document URL.
-        vm.gotoDocumentUrl = function (url) {
-            if (vm.assetsuccess) {
-                $window.open(configs.global.repositoryUrl + "/SitePages/documentDetails.aspx?client=" + url.replace(configs.uri.SPOsiteURL, "") + "&listguid=" + vm.listguid + "&docguid=" + vm.docguid, 'viewmatterwindow', 'toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=850,height=500');
-            } else {
-                $timeout(function () { $window.open(configs.global.repositoryUrl + "/SitePages/documentDetails.aspx?client=" + url.replace(configs.uri.SPOsiteURL, "") + "&listguid=" + vm.listguid + "&docguid=" + vm.docguid, 'viewmatterwindow', 'toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=850,height=500'); }, 1500);
-            }
+            
         }
         //#endregion
 
@@ -2196,49 +2235,59 @@
             //Document
             if (name === vm.documentConfigContent.GridColumn1Header) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyFileName + "";
-                vm.filtername = vm.documentConfigContent.GridColumn1Header;
+                vm.filtername = vm.documentConfigContent.GridColumn1Header;                
+                $timeout( function(){angular.element('#docFileName').focus()}, 1000);
             }
             //ClientName
             if (name === vm.documentConfigContent.GridColumn2Header) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyDocumentClientName + "";
                 vm.filtername = vm.documentConfigContent.GridColumn2Header;
+                $timeout(function () { angular.element('#docClientName').focus() }, 1000);
             }
 
             //Project Name
             if (name === vm.documentConfigContent.GridColumn3Header) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyMatterName + "";
                 vm.filtername = vm.documentConfigContent.GridColumn3Header;
+                $timeout(function () { angular.element('#docMatterName').focus() }, 1000);
             }
             //Author
             if (name === vm.documentConfigContent.GridColumn4Header && vm.globalSettings.isBackwardCompatible) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyAuthor + "";
                 vm.filtername = vm.documentConfigContent.GridColumn4Header;
+                $timeout(function () { angular.element('#docAuthor1').focus() }, 1000);
             }
             if (name === vm.documentConfigContent.GridColumn5Header && !vm.globalSettings.isBackwardCompatible) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyAuthor + "";
                 vm.filtername = vm.documentConfigContent.GridColumn5Header;
+                $timeout(function () { angular.element('#docAuthor2').focus() }, 1000);
             }
             //for Practice Group
             if (name === vm.documentConfigContent.GridColumn6Header) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyPracticeGroup + "";
                 vm.filtername = vm.documentConfigContent.GridColumn6Header;
+                $timeout(function () { angular.element('#docPGFil').focus() }, 1000);
             }
             //Check out to
             if (name === vm.documentConfigContent.GridColumn7Header) {
                 vm.searchexp = "" + vm.configSearchContent.ManagedPropertyDocumentCheckOutUser + "";
                 vm.filtername = vm.documentConfigContent.GridColumn7Header;
+                $timeout(function () { angular.element('#docDocCheckOutUser').focus() }, 1000);
             }
             //Modified Date
             if (name === vm.documentConfigContent.GridColumn4Header && !vm.globalSettings.isBackwardCompatible) {
                 vm.filtername = vm.documentConfigContent.GridColumn4Header;
+                $timeout(function () { angular.element('#docModifieddDate').focus() }, 1000);
             }
 
             if (name === vm.documentConfigContent.GridColumn5Header && vm.globalSettings.isBackwardCompatible) {
                 vm.filtername = vm.documentConfigContent.GridColumn5Header;
+                $timeout(function () { angular.element('#docModifieddDate').focus() }, 1000);
             }
             //Created Date
             if (name == vm.documentConfigContent.GridColumn8Header) {
                 vm.filtername = vm.documentConfigContent.GridColumn8Header;
+                $timeout(function () { angular.element('#docCreatedDate').focus() }, 1000);
             }
             vm.dateOptions.maxDate = new Date();
             vm.modDateOptions.maxDate = new Date();
@@ -2305,6 +2354,105 @@
         }
         //#endregion
 
+
+        //#region accessibility bug fixses
+        //keycode 13 for enterkey
+        //keycode 9 for tab
+        //keycode 38 up arrow and 40 for down arrow
+        //keycode 27 for esc key
+        //to handle enter key press event on the ECB menu for accessibility issue fix
+        vm.openContextMenu = function (event, currentRow) {           
+            if (event.keyCode === 13) {
+                $('.popcontent').css('display', 'none');
+                angular.element($(event.currentTarget.children[0])).addClass('open');
+              
+            }
+            else if (event.keyCode != 38 && event.keyCode != 40 && event.keyCode != 9) {
+                angular.element($(event.currentTarget.children[0])).removeClass('open');
+                $scope.gridApi.selection.unSelectRow(vm.currentRow);
+            }
+            jQuery.a11yfy.assertiveAnnounce("Expanded document search results context menu");
+        }
+
+        //to handle enter key press event to display matter flyout menu for accessibility issue fix
+        vm.openDocumentFlyout = function (event) {
+            if (event.keyCode === 13) {
+                angular.element($(event.currentTarget.children[0])).click();
+            }
+            else if (event.keyCode != 38 && event.keyCode != 40 && event.keyCode != 9) {
+                $('.popcontent').css('display', 'none');
+            }
+        }
+
+
+        vm.closeContextMenu = function ($event) {
+            //To handle key board event for accessability fix
+            if (event.keyCode === 9) {
+                angular.element($(event.currentTarget.parentElement.parentElement)).removeClass('open');
+            }
+            jQuery.a11yfy.assertiveAnnounce("Collapsing document search results context menu");
+        }
+        //To handle check all functionality when the user presses checkbox at the 
+        //in the header column
+        vm.toggleCheckerForKeyDown = function (temp, currentRow, event) {
+            temp = temp ? false : true;
+            var checkedMessage = temp ? "checked" : "unchecked";
+            currentRow.checker = temp;
+            console.log(checkedMessage);
+            jQuery.a11yfy.assertiveAnnounce("checkbox " + checkedMessage);
+
+        }
+        //To handle keyboard navigation to open document menu option
+        vm.documentsCombobox = function (event, id) {
+            if (event.keyCode == 13) {
+                angular.element('#comboDocumentsOpt').addClass("open");
+                
+            }
+            else if (id == 3 && event.keyCode == 9) {
+                angular.element('#comboDocumentsOpt').removeClass('open');
+            }
+            else if (event.keyCode == 27) {
+                angular.element('#comboDocumentsOpt').removeClass('open');
+            }
+            jQuery.a11yfy.assertiveAnnounce("expanding documents selection drop down option");
+
+
+        }
+
+        //#endregion
+        vm.pageLoadCompleted = function () {
+            jQuery.a11yfy.assertiveAnnounce("Documents search page loaded successfully");
+        }
+
+        //#region 
+        vm.beforeSortingAccessibilityMessage = function (searchRequest) {
+            if (searchRequest.SearchObject.Sort.Direction == 0) {
+                jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+            } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+            }
+        }
+        vm.afterSortingAccessibilityMessage = function (searchRequest) {
+            if (searchRequest.SearchObject.Sort.Direction == 0) {
+                jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+            } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+            }
+        }
+        //#endregion
+
+        //#region for grid menu
+        function forExpandingGridMenu() {
+            $interval(function () {
+                var elem = $($('.ui-grid-icon-container')[0]);
+                elem.attr("title", "grid menu")
+                elem.on("focus", function () {
+                    jQuery.a11yfy.assertiveAnnounce("use shift enter key to expand grid menu");
+                });
+
+            }, 5000);
+        }
+        //#endregion
     }]);
 
     //#region For adding custom filter 

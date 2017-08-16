@@ -1,8 +1,8 @@
 ﻿(function () {
     'use strict;'
     var app = angular.module("matterMain");
-    app.controller('MatterDashBoardController', ['$scope', '$state', '$interval', '$stateParams', 'api', '$timeout', 'matterDashBoardResource', '$rootScope', 'uiGridConstants', '$location', '$http', '$q', '$filter', 'commonFunctions', '$window', 'adalAuthenticationService',
-        function matterDashBoardController($scope, $state, $interval, $stateParams, api, $timeout, matterDashBoardResource, $rootScope, uiGridConstants, $location, $http, $q, $filter, commonFunctions, $window, adalService) {
+    app.controller('MatterDashBoardController', ['$scope', '$state', '$interval', '$stateParams', 'api', '$timeout', 'matterDashBoardResource', '$rootScope', 'uiGridConstants', '$location', '$http', '$q', '$filter', 'commonFunctions', '$window', 'adalAuthenticationService', '$anchorScroll',
+        function matterDashBoardController($scope, $state, $interval, $stateParams, api, $timeout, matterDashBoardResource, $rootScope, uiGridConstants, $location, $http, $q, $filter, commonFunctions, $window, adalService, $anchorScroll) {
             //#region For declaring variables.
             var vm = this;
             vm.selectedRow = {
@@ -200,7 +200,7 @@
                 field: 'pin',
                 displayName: 'Pin',                
                 width: '50',
-                cellTemplate: '<div class="ui-grid-cell-contents pad0" ><img title={{row.entity.pinType}} ng-src="../Images/{{row.entity.pinType}}-666.png"  ng-click="grid.appScope.vm.pinorunpin($event, row.entity)"/></div>',
+                cellTemplate: '<div class="ui-grid-cell-contents pad0" ><img aria-label="This image button will allow the user to pin or unpin the matter" alt="{{row.entity.pinType}}" title="{{row.entity.pinType}}" ng-src="../Images/{{row.entity.pinType}}-666.png"  ng-click="grid.appScope.vm.pinorunpin($event, row.entity)"/></div>',
                 enableColumnMenu: false,
                 position: 75
             });
@@ -209,7 +209,7 @@
                 field: 'upload',
                 displayName: 'Upload',
                 width: '60',
-                cellTemplate: '<div class="ui-grid-cell-contents pad0" showupload loginuser="' + vm.loginUser + '" hideupload={{row.entity.hideUpload}}><img title="upload" class="hideUploadImg" src="../Images/upload-666.png"/><img title="upload" class="showUploadImg" src="../Images/upload-666.png" ng-click="grid.appScope.vm.Openuploadmodal(row.entity.matterName,row.entity.matterClientUrl,row.entity.matterGuid)"/></div>',
+                cellTemplate: '<div class="ui-grid-cell-contents pad0" showupload loginuser="' + vm.loginUser + '" hideupload={{row.entity.hideUpload}}><img aria-label="This image button will allow the user to upload documents to the current matter" title="upload" class="hideUploadImg" src="../Images/upload-666.png"/><img title="upload" class="showUploadImg" src="../Images/upload-666.png" ng-click="grid.appScope.vm.Openuploadmodal(row.entity.matterName,row.entity.matterClientUrl,row.entity.matterGuid)"/></div>',
                 enableColumnMenu: false,
                 position: 76
             });
@@ -239,7 +239,8 @@
                     vm.gridApi = gridApi;
                     //Set the selected row of the grid to selectedRow property of the controller
                     gridApi.selection.on.rowSelectionChanged($scope, function (row) {
-                        vm.selectedRow = row.entity
+                        vm.selectedRow = row.entity;
+                       
                     });
                 }
             }
@@ -292,6 +293,9 @@
                     success: callback
                 });
             }
+
+            //Getting practice group data to get the content type from the data
+            vm.taxonomyData = {};          
 
             //API call to get matter count
             function getMatterCounts(searchRequest, callback) {
@@ -541,6 +545,7 @@
 
             //#region This earch function will be used when the user enters some text in the search text box and presses search button
             vm.searchMatters = function (val) {
+                $("[uib-typeahead-popup].dropdown-menu").css("display", "block");
                 var searchMattersSearchRequest = {
                     Client: {
                         Url: configs.global.repositoryUrl
@@ -635,6 +640,7 @@
             vm.searchText = "";
             vm.searchClicked = false;
             vm.searchByTerm = function () {
+                
                 vm.searchClicked = true;
                 vm.lazyloaderdashboard = false;
                 vm.displaypagination = false;
@@ -745,6 +751,8 @@
                                 vm.pinMatterCount = 0;
                                 vm.getMatterCounts();
                             }
+                            $timeout(function () { angular.element('#myMatters').focus(); }, 1000);
+                            $anchorScroll();
                         });
                     }
                 });
@@ -831,6 +839,7 @@
             //#region This function will pin or unpin the matter based on the image button clicked
             vm.pinorunpin = function (e, currentRowData) {
                 vm.popupContainer = false;
+                jQuery.a11yfy.assertiveAnnounce("Pinning matter " + currentRowData.matterName)
                 if (e.currentTarget.src.toLowerCase().indexOf("images/pin-666.png") > 0) {
                     e.currentTarget.src = "../Images/loadingGreen.gif";
                     var pinRequest = {
@@ -861,11 +870,13 @@
                             e.currentTarget.src = "../images/unpin-666.png";
                             e.currentTarget.title = "unpin"
                             vm.pinMatterCount = parseInt(vm.pinMatterCount, 10) + 1;
+                            jQuery.a11yfy.assertiveAnnounce(currentRowData.matterName + " has pinned successfully")
                         }
                         vm.popupContainer = true;
                     });
                 }
                 else if (e.currentTarget.src.toLowerCase().indexOf("images/unpin-666.png") > 0) {
+                    jQuery.a11yfy.assertiveAnnounce("UnPinning matter " + currentRowData.matterName)
                     e.currentTarget.src = "../Images/loadingGreen.gif";
                     var unpinRequest = {
                         Client: {
@@ -877,7 +888,7 @@
                     }
                     unpinMatter(unpinRequest, function (response) {
                         if (response.isMatterUnPinned) {
-
+                            jQuery.a11yfy.assertiveAnnounce(currentRowData.matterName + " has been unpinned successfully")
                             vm.pinMatterCount = parseInt(vm.pinMatterCount, 10) - 1;
                             if (vm.tabClicked.toLowerCase().indexOf("pinned") >= 0) {
                                 e.currentTarget.src = "../images/unpin-666.png";
@@ -905,6 +916,10 @@
                 vm.searchdrop = true;
                 vm.downwarddrop = false;
                 vm.upwarddrop = true;
+                jQuery.a11yfy.assertiveAnnounce("Exapnding advance search section");
+                $timeout(function () { angular.element('#matterClients').focus(); }, 500);
+                $("[uib-typeahead-popup].dropdown-menu").css("display", "none");
+
             }
 
             vm.showdownward = function ($event) {
@@ -912,18 +927,23 @@
                 vm.searchdrop = false;
                 vm.upwarddrop = false;
                 vm.downwarddrop = true;
+                jQuery.a11yfy.assertiveAnnounce("Collapsing advance search section");
             }
             //#endregion
 
             //#region Showing and Hiding the sortby dropdown
-            vm.showsortby = function ($event) {
+            vm.showsortby = function ($event) {               
                 $event.stopPropagation();
                 if (!vm.sortbydropvisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding context menu");
                     vm.sortbydrop = true;
                     vm.sortbydropvisible = true;
+                    $timeout(function () { angular.element('#menuSortBy').focus() }, 500);
                 } else {
+                    jQuery.a11yfy.assertiveAnnounce("Collapsing context menu");
                     vm.sortbydrop = false;
-                    vm.sortbydropvisible = false;
+                    vm.sortbydropvisible = false; 
+                    $timeout(function () { angular.element('#sortIconCombo').focus() }, 500);
                 }
             }
             //#endregion
@@ -931,12 +951,14 @@
             //#region For declaring startdate and enddate variable.
             vm.dateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             };
 
             vm.endDateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             }
 
             $scope.$watch('vm.startDate', function (newval, oldval) {
@@ -975,7 +997,14 @@
             //#region Functionality to get result as per selection of created date
             vm.changeOnCreateDate = function ($event) {
                 if ($event.keyCode == '13' || $event.keyCode == '9') {
-
+                    vm.subAoldrop = false;
+                    vm.subAolDropVisible = false;
+                    vm.clientdrop = false;
+                    vm.clientdropvisible = false;
+                    vm.aoldrop = false;
+                    vm.aoldropvisible = false;
+                    vm.pgdrop = false;
+                    vm.pgdropvisible = false;
                     var modelValue = $event.target.attributes['ng-model'].value;
 
                     if (!/^\d{1,2}\/\d{1,2}\/\d{4}$/.test($event.target.value)) {
@@ -1023,12 +1052,15 @@
             vm.showClientDrop = function ($event) {
                 $event.stopPropagation();
                 if (!vm.clientdropvisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding the clients list popup");
                     if (vm.clients === undefined) {
+                        jQuery.a11yfy.assertiveAnnounce("Loading the clients");
                         vm.lazyloaderclient = false;
                         getTaxonomyDetailsForClient(optionsForClientGroup, function (response) {
                             vm.clients = response.clientTerms;
                             vm.clientdrop = true;
                             vm.clientdropvisible = true;
+                            jQuery.a11yfy.assertiveAnnounce("clients list loaded");
                             if (vm.selectedClients !== undefined && vm.selectedClients.length > 0) {
                                 vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel1InternalFuncParamText);
                             }
@@ -1052,6 +1084,7 @@
                 } else if (vm.clientdropvisible && $event.type === "keyup") {
                     vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel1InternalFuncParamText);
                 } else {
+                    jQuery.a11yfy.assertiveAnnounce("Collapsing the clients list popup");
                     vm.clientdrop = false;
                     vm.clientdropvisible = false;
                     vm.pgdrop = false;
@@ -1069,10 +1102,11 @@
             vm.showPracticegroupDrop = function ($event) {
                 $event.stopPropagation();
                 if (!vm.pgdropvisible) {
-
+                    jQuery.a11yfy.assertiveAnnounce("Expanding the practice group list popup");
                     if (!vm.globalSettings.isBackwardCompatible) {
                         if ((vm.practiceGroups === undefined) && (vm.aolTerms === undefined)) {
                             vm.lazyloaderpg = false;
+                        jQuery.a11yfy.assertiveAnnounce("Loading the practice groups");
                             getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
                                 vm.practiceGroups = response.level1;
                                 vm.aolTerms = [];
@@ -1089,6 +1123,7 @@
                                         });
                                     });
                                 });
+                                jQuery.a11yfy.assertiveAnnounce("practice groups lists loaded");
                                 vm.pgdrop = true;
                                 vm.pgdropvisible = true;
                                 if (vm.selectedPGs !== undefined && vm.selectedPGs.length > 0) {
@@ -1143,6 +1178,7 @@
                 } else if (vm.pgdropvisible && $event.type === "keyup") {
                     vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel2InternalFuncParamText);
                 } else {
+                    jQuery.a11yfy.assertiveAnnounce("collapsing practice groups popup");
                     vm.clientdrop = false;
                     vm.clientdropvisible = false;
                     vm.pgdrop = false;
@@ -1160,9 +1196,11 @@
             vm.showAreaofLawDrop = function ($event) {
                 $event.stopPropagation();
                 if (!vm.aoldropvisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding the Area of law popup");
                     if (!vm.globalSettings.isBackwardCompatible) {
                         if ((vm.practiceGroups === undefined) && (vm.aolTerms === undefined)) {
                             vm.lazyloaderaol = false;
+                            jQuery.a11yfy.assertiveAnnounce(" Area of law terms are loading");
                             getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
                                 vm.practiceGroups = response.level1;
                                 vm.aolTerms = [];
@@ -1173,6 +1211,7 @@
                                 })
                                 vm.aoldrop = true;
                                 vm.aoldropvisible = true;
+                                jQuery.a11yfy.assertiveAnnounce(" Area of law terms are loaded");
                                 if (vm.selectedAOLs !== undefined && vm.selectedAOLs.length > 0) {
                                     vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel3InternalFuncParamText);
                                 }
@@ -1222,6 +1261,7 @@
                     vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel3InternalFuncParamText);
                 }
                 else {
+                    jQuery.a11yfy.assertiveAnnounce("collapsing Area of law terms popup");
                     vm.clientdrop = false;
                     vm.clientdropvisible = false;
                     vm.pgdrop = false;
@@ -1239,8 +1279,10 @@
             vm.showSubAreaofLawDrop = function ($event) {
                 $event.stopPropagation();
                 if (!vm.subAolDropVisible) {
+                    jQuery.a11yfy.assertiveAnnounce("Expanding the sub area of law term list popup");
                     if ((vm.practiceGroups === undefined) && (vm.aolTerms === undefined) && (vm.subAolTerms === undefined)) {
                         vm.lazyloadersubaol = false;
+                        jQuery.a11yfy.assertiveAnnounce("sub area of law term sare loading");
                         getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
                             vm.practiceGroups = response.level1;
                             vm.aolTerms = [];
@@ -1254,6 +1296,7 @@
                             })
                             vm.subAoldrop = true;
                             vm.subAolDropVisible = true;
+                            jQuery.a11yfy.assertiveAnnounce("sub area of law terms list loaded");
                             if (vm.selectedSubAOLs !== undefined && vm.selectedSubAOLs.length > 0) {
                                 vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel4InternalFuncParamText);
                             }
@@ -1278,6 +1321,7 @@
                     vm.customSelection(vm.matterDashboardConfigs.AdvSearchLabel4InternalFuncParamText);
                 }
                 else {
+                    jQuery.a11yfy.assertiveAnnounce("collapsing sub area of law terms popup");
                     vm.clientdrop = false;
                     vm.clientdropvisible = false;
                     vm.pgdrop = false;
@@ -1301,6 +1345,7 @@
                         angular.forEach(selectdClients, function (clientInput) {
                             if (clientInput.toString().length > 0 && client.name.toString().toLowerCase().indexOf(clientInput.toString().toLowerCase()) !== -1) {
                                 client.Selected = true;
+                                jQuery.a11yfy.assertiveAnnounce(client.name+"checked");
                             }
                         })
                     });
@@ -1312,6 +1357,7 @@
                         angular.forEach(selectdPGs, function (pgInput) {
                             if (pgInput.toString().length > 0 && pgGroup.termName.toString().toLowerCase().indexOf(pgInput.toString().toLowerCase()) !== -1) {
                                 pgGroup.Selected = true;
+                                jQuery.a11yfy.assertiveAnnounce(pgGroup.termName + "checked");
                             }
                         })
                     });
@@ -1324,6 +1370,7 @@
                             angular.forEach(selectedAOLs, function (aolInput) {
                                 if (aolInput.toString().length > 0 && aol.termName.toString().toLowerCase().indexOf(aolInput.toString().toLowerCase()) !== -1) {
                                     aol.Selected = true;
+                                    jQuery.a11yfy.assertiveAnnounce(aol.termName + "checked");
                                 }
                             })
                         }
@@ -1331,6 +1378,7 @@
                             angular.forEach(selectedAOLs, function (aolInput) {
                                 if (aolInput.toString().length > 0 && aol.name.toString().toLowerCase().indexOf(aolInput.toString().toLowerCase()) !== -1) {
                                     aol.Selected = true;
+                                    jQuery.a11yfy.assertiveAnnounce(aol.name + "checked");
                                 }
                             })
                         }
@@ -1343,6 +1391,7 @@
                         angular.forEach(selectdSubAreaofLaws, function (subAreaOfLawInput) {
                             if (subAreaOfLawInput.toString().length > 0 && subAreaOfLaw.termName.toString().toLowerCase().indexOf(subAreaOfLawInput.toString().toLowerCase()) !== -1) {
                                 subAreaOfLaw.Selected = true;
+                                jQuery.a11yfy.assertiveAnnounce(subAreaOfLaw.termName + "checked");
                             }
                         })
                     });
@@ -1353,25 +1402,30 @@
             //#region This event is going to file when the user clicks onm "Select All" and "UnSelect All" links
             vm.checkAll = function (checkAll, type, $event) {
                 $event.stopPropagation();
+                var checkAnnounc=checkAll?"checked":"unchecked";
                 if (type === vm.matterDashboardConfigs.AdvSearchLabel1InternalFuncParamText) {
                     angular.forEach(vm.clients, function (client) {
                         client.Selected = checkAll;
                     });
+                    jQuery.a11yfy.assertiveAnnounce("all clients are"+checkAnnounc);
                 }
                 if (type === vm.matterDashboardConfigs.AdvSearchLabel2InternalFuncParamText) {
                     angular.forEach(vm.practiceGroups, function (pg) {
                         pg.Selected = checkAll;
                     });
+                    jQuery.a11yfy.assertiveAnnounce("all practice groups  are" + checkAnnounc);
                 }
                 if (type === vm.matterDashboardConfigs.AdvSearchLabel3InternalFuncParamText) {
                     angular.forEach(vm.aolTerms, function (aol) {
                         aol.Selected = checkAll;
                     });
+                    jQuery.a11yfy.assertiveAnnounce("all area of law terms  are" + checkAnnounc);
                 }
                 if (type === vm.matterDashboardConfigs.AdvSearchLabel4InternalFuncParamText) {
                     angular.forEach(vm.subAolTerms, function (subAol) {
                         subAol.Selected = checkAll;
                     });
+                    jQuery.a11yfy.assertiveAnnounce("all sub area of law terms  are" + checkAnnounc);
                 }
             }
             //#endregion
@@ -1519,18 +1573,48 @@
             vm.getFolderHierarchy = function (matterName, matterUrl, matterGUID) {
 
                 if ((matterName && matterName !== "") && (matterUrl && matterUrl !== "") && (matterGUID && matterGUID !== "")) {
-
-                    vm.selectedRow.matterName = matterName;
-                    vm.selectedRow.matterClientUrl = matterUrl;
-                    vm.selectedRow.matterGuid = matterGUID;
+                    var row = $filter("filter")(vm.matterGridOptions.data, matterGUID);
+                    if(row.length>0){
+                        vm.currentRow = row[0];
+                    }                    
+                    vm.selectedRow = vm.currentRow;
                 }
+                vm.allAttachmentDetails = [];  
+                ///function to get the default configurations of matter for select client
+                //check wheather contentCheck for the uploaded document is neccessary 
+                // also check if Additional matter Dialog box should be shown or not
+                //if yes get the taxonomoy api and check if custom property with name MatterProvisionExtraPropertiesContentType
+                //has been set or not. If that property has been set then get Additional Matter Properties and display the upload
+                //dialog box   
+                getContentCheckConfigurations(JSON.stringify(vm.selectedRow.matterClientUrl), function (response) {
+                    if (!response.isError) {
+                        var defaultMatterConfig = JSON.parse(response.code);
+                        vm.oUploadGlobal.bAllowContentCheck = defaultMatterConfig.IsContentCheck;
+                        if (defaultMatterConfig.ShowAdditionalPropertiesDialogBox && vm.currentRow.matterDefaultContentType) {
+                            getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
+                                if (!response.isError) {
+                                    vm.taxonomyData = response;
+                                    getAdditionalMatterProperties();
+                                }
+                            });
+                        }
+                        else {
+                            getFolderHierarchyApi();
+                        }
+                    }
+                    else {
+                        vm.oUploadGlobal.bAllowContentCheck = false;
+                    }
+                });               
+            }
 
-                vm.allAttachmentDetails = [];
+
+            // to get the matter document library folders
+            function getFolderHierarchyApi() {
                 var matterData = {
                     MatterName: vm.selectedRow.matterName,
                     MatterUrl: vm.selectedRow.matterClientUrl
                 };
-                vm.getContentCheckConfigurations(vm.selectedRow.matterClientUrl);
                 getFolderHierarchy(matterData, function (response) {
                     vm.foldersList = response.foldersList;
                     vm.uploadedFiles = [];
@@ -1563,20 +1647,40 @@
             //#region This function will handle the files that has been dragged from the user desktop
             vm.ducplicateSourceFile = [];
             vm.handleDesktopDrop = function (targetDropUrl, sourceFiles, isOverwrite) {
+                vm.oUploadGlobal.successBanner = false;              
+                vm.FilesFromDesktopOrMail = "filesfromdesktop";
+                vm.DesktopDroppedFiles = {};
+                vm.DesktopDroppedFiles.targetDropUrl = targetDropUrl;
+                vm.DesktopDroppedFiles.sourceFiles = sourceFiles;
+                vm.DesktopDroppedFiles.isOverwrite = isOverwrite;
+                if (vm.addtionalPropertiesAvaialbleForMatter) {                   
+                    jQuery('#UploadExtraMatterPropertiesModal').modal("show");
+                } else {
+                    vm.uploadDesktopDroppedFiles(null);
+                }
+
+            }
+            //method to upload desktop dropped file with extraproperties
+            vm.uploadDesktopDroppedFiles = function (matterExtraPropertiesValues) {
                 vm.oUploadGlobal.successBanner = false;
                 vm.isLoadingFromDesktopStarted = true;
+                var targetDropUrl = vm.DesktopDroppedFiles.targetDropUrl;
+                var sourceFiles = vm.DesktopDroppedFiles.sourceFiles;
+                var isOverwrite = vm.DesktopDroppedFiles.isOverwrite;
                 var fd = new FormData();
                 fd.append('targetDropUrl', targetDropUrl);
                 fd.append('folderUrl', targetDropUrl)
                 fd.append('documentLibraryName', vm.selectedRow.matterName)
                 fd.append('clientUrl', vm.selectedRow.matterClientUrl);
                 fd.append('AllowContentCheck', vm.oUploadGlobal.bAllowContentCheck);
+                matterExtraPropertiesValues = JSON.stringify(matterExtraPropertiesValues);
+                fd.append('DocumentExtraProperties', matterExtraPropertiesValues)
                 var nCount = 0;
                 angular.forEach(sourceFiles, function (file) {
                     fd.append('file', file);
                     fd.append("Overwrite" + nCount++, isOverwrite);
                 });
-
+                jQuery.a11yfy.assertiveAnnounce('Uploading files. Please wait...');
                 $http.post("/api/v1/document/uploadfiles", fd, {
                     transformRequest: angular.identity,
                     headers: { 'Content-Type': undefined },
@@ -1592,6 +1696,7 @@
                                     vm.uploadedFiles.push(response.data[i]);
                                     tempFile.push(response.data[i]);
                                     vm.oUploadGlobal.successBanner = (tempFile.length == sourceFiles.length) ? true : false;
+                                    jQuery.a11yfy.assertiveAnnounce('files uploaded successfully to folder' + response.data[i].dropFolder);
                                     vm.ducplicateSourceFile = vm.ducplicateSourceFile.filter(function (item) {
                                         return item.fileName !== response.data[i].fileName;
                                     });
@@ -1611,6 +1716,7 @@
                                             vm.ducplicateSourceFile.push(response.data[i]);
                                             vm.oUploadGlobal.arrFiles.push(vm.files[i]);
                                             vm.oUploadGlobal.successBanner = false;
+                                            jQuery.a11yfy.assertiveAnnounce(response.data[i].value)
                                         }
                                         else {
                                             var file = $filter("filter")(vm.ducplicateSourceFile, response.data[i].fileName);
@@ -1621,6 +1727,7 @@
                                                 file[0].saveLatestVersion = "True";
                                                 file[0].cancel = "True";
                                                 file[0].contentCheck = "False";
+                                                jQuery.a11yfy.assertiveAnnounce(file[0].value)
                                             }
 
                                         }
@@ -1630,6 +1737,7 @@
                                         response.data[i].ok = "True";
                                         response.data[i].value = "The file <b >" + response.data[i].fileName + " </b> is failed to upload";
                                         vm.ducplicateSourceFile.push(response.data[i]);
+                                        jQuery.a11yfy.assertiveAnnounce(response.data[i].value)
                                     }
                                 }
 
@@ -1643,19 +1751,45 @@
                     vm.isLoadingFromDesktopStarted = false;
                     console.error('Gists error', response.status, response.data);
                 })
+            }
+
+            //#region  functionality to handle outlookdrop and desktop drop with extra document properties
+
+            vm.SaveDocPropertiesAndUpload = function (filesFromDesktopOrMail) {
+                jQuery('#UploadExtraMatterPropertiesModal').modal("hide");
+                vm.isLoadingFromDesktopStarted = true;
+                var documentProperties = undefined;
+                var matterExtraPropertiesValues = undefined;
+                //var attachmentRequestVM = vm.uploadedMailItemDetails.attachmentRequestVM;
+                if (vm.addtionalPropertiesAvaialbleForMatter) {
+                    documentProperties = setAdditionalMatterPropertiesFieldsData();
+                    // var sourceFile = vm.uploadedMailItemDetails.sourceFile;
+                    matterExtraPropertiesValues = {
+                        ContentTypeName: vm.matterProvisionExtraPropertiesContentTypeName,
+                        Fields: documentProperties
+                    }
+                    vm.matterExtraPropertiesValues = matterExtraPropertiesValues;
+                }
+                if (filesFromDesktopOrMail == "filesfromdesktop") {
+                    vm.uploadDesktopDroppedFiles(matterExtraPropertiesValues);
+                }              
 
             }
-            vm.uploadedFiles = [];
+            //#endregion
+
+            vm.uploadedFiles = [];            
             //#endregion
 
 
             //#region For Sorting by Alphebatical or Created date
             vm.FilterByType = function () {
+                vm.beforeSortingAccessibilityMessage(jsonMatterSearchRequest);
                 vm.lazyloaderdashboard = false;
                 vm.divuigrid = false;
                 vm.displaypagination = false;
                 vm.nodata = false;
                 if (vm.tabClicked === "Pinned Matters") {
+                    
                     jsonMatterSearchRequest.SearchObject.Sort.SortAndFilterPinnedData = true;
                     getPinnedMatters(jsonMatterSearchRequest, function (response) {
                         if (response == "" || response.length == 0) {
@@ -1683,6 +1817,7 @@
                             vm.divuigrid = true;
                             vm.lazyloaderdashboard = true;
                             vm.displaypagination = true;
+                            vm.afterSortingAccessibilityMessage(jsonMatterSearchRequest);
                         }
                     });
                 }
@@ -1697,6 +1832,7 @@
                             if (!$scope.$$phase) {
                                 $scope.$apply();
                             }
+                            vm.afterSortingAccessibilityMessage(jsonMatterSearchRequest);
                         }
                     });
                 }
@@ -1851,6 +1987,7 @@
                                 }
                                 vm.displaypagination = true;
                                 $interval(function () { vm.setPaginationHeight() }, 500, angular.element(".ui-grid-canvas").css('visibility') != 'hidden');
+                                $anchorScroll();
                             });
                             if (!$scope.$$phase) {
                                 $scope.$apply();
@@ -1922,6 +2059,7 @@
                                 }
                                 vm.displaypagination = true;
                                 $interval(function () { vm.setPaginationHeight() }, 500, angular.element(".ui-grid-canvas").css('visibility') != 'hidden');
+                                $anchorScroll();
                             });
                             if (!$scope.$$phase) {
                                 $scope.$apply();
@@ -2301,6 +2439,11 @@
                     vm.showInnerNav = false;
                 }
             }
+
+            vm.disableNavTab = function () {
+                vm.showNavTab = false;
+                vm.showInnerNav = true;;
+            }
             //#endregion
 
             //#region showing the hidden tabs in responsive
@@ -2315,6 +2458,8 @@
                 } else {
                     vm.getMatterPinned();
                 }
+                vm.showNavTab = false;
+                vm.showInnerNav = true;;
             }
             //#endregion
 
@@ -2362,6 +2507,22 @@
                 }
             }
 
+            vm.beforeSortingAccessibilityMessage = function (searchRequest) {
+                if (searchRequest.SearchObject.Sort.Direction == 0) {
+                    jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+                } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                    jQuery.a11yfy.assertiveAnnounce("sorting data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+                }
+            }
+            vm.afterSortingAccessibilityMessage = function (searchRequest) {
+                if (searchRequest.SearchObject.Sort.Direction == 0) {
+                    jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in ascending order");
+                } else if (searchRequest.SearchObject.Sort.Direction == 1) {
+                    jQuery.a11yfy.assertiveAnnounce("sorted data by " + searchRequest.SearchObject.Sort.ByColumn + " in descending order");
+                }
+            }
+
+
             //#region to set the dynamic min-width to the pagination div
             vm.setWidthtoPagination = function () {
                 var txt = vm.fromtopage;
@@ -2393,7 +2554,156 @@
                     }
                 }
             }
+            vm.pageLoadCompleted = function () {
+                jQuery.a11yfy.assertiveAnnounce("Matters dashboard page loaded successfully");
+            }
             //#endregion
+            vm.ariaMessage = function (message) {
+                jQuery.a11yfy.assertiveAnnounce(message);                
+            }
+           
+            //#region for additional matter properties
+            vm.addtionalPropertiesAvaialbleForMatter = false;
+            //#region function to get content type name from the term
+            function getAdditionalContentTypeName() {
+                vm.addtionalPropertiesAvaialbleForMatter = false;
+                vm.matterExtraPropertiesValues = null;
+                var getExtraMatterProp = false;
+                var levels = vm.taxonomyData.levels;
+                var termData = vm.taxonomyData.level1;
+                angular.forEach(termData, function (levelOneTerm) {
+                    if (levelOneTerm.termName == vm.currentRow.matterPracticeGroup) {
+                        angular.forEach(levelOneTerm.level2, function (levelTwoTerm) {
+                            if (levelTwoTerm.termName == vm.currentRow.matterAreaOfLaw) {
+                                angular.forEach(levelTwoTerm.level3, function (levelThreeTerm) {
+                                    if (levels == 3) {
+                                        if (levelThreeTerm.termName == vm.currentRow.matterDefaultContentType) {
+                                            getExtraMatterProp = IsCustomPropertyPresentInTerm(levelThreeTerm);
+                                        }
+
+                                    } else if (levels == 4) {
+                                        angular.forEach(levelThreeTerm.level4, function (levelFourTerm) {
+                                            if (levelFourTerm.termName == vm.currentRow.matterDefaultContentType) {
+                                                getExtraMatterProp = IsCustomPropertyPresentInTerm(levelFourTerm);
+                                            }
+                                        });
+                                    }
+                                    else if (levels == 5) {
+                                        angular.forEach(levelThreeTerm.level4, function (levelFourTerm) {
+                                            angular.forEach(levelFourTerm.level5, function (levelFiveTerm) {
+                                                if (levelFiveTerm.termName == vm.currentRow.matterDefaultContentType) {
+                                                    getExtraMatterProp = IsCustomPropertyPresentInTerm(levelFiveTerm);
+                                                }
+                                            });
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+                vm.addtionalPropertiesAvaialbleForMatter = getExtraMatterProp;
+                return getExtraMatterProp;
+            }
+            //function to get the contenttype name from the term customproperty
+            vm.matterProvisionExtraPropertiesContentTypeName = "";
+            function IsCustomPropertyPresentInTerm(data) {
+                var additionalMatterPropSettingName = configs.taxonomy.matterProvisionExtraPropertiesContentType;
+                if (data[additionalMatterPropSettingName] && data[additionalMatterPropSettingName] != "") {
+                    vm.matterProvisionExtraPropertiesContentTypeName = data[additionalMatterPropSettingName];
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
+
+
+            //API call to retrieve matter extra properties.
+            function getmatterprovisionextraproperties(options, callback) {
+                api({
+                    resource: 'matterResource',
+                    method: 'getmatterprovisionextraproperties',
+                    data: options,
+                    success: callback
+                });
+            }
+
+            vm.matterExtraFields = [];
+            // this function will get additional matter properties that needs to be displayed for the users to be override 
+            // when the document is getting uploaded.  
+            function getAdditionalMatterProperties() {
+                var extraMatterPropertiesAvailableForMatter = getAdditionalContentTypeName();
+                if (extraMatterPropertiesAvailableForMatter) {
+                    var additionalMatterPropSettingName = vm.matterProvisionExtraPropertiesContentTypeName;
+                    var optionsForGetmatterprovisionextraproperties = {
+                        Client: {
+                            Url: vm.selectedRow.matterClientUrl,
+                            Name: vm.selectedRow.matterName
+                        },
+                        MatterExtraProperties: {
+                            ContentTypeName: additionalMatterPropSettingName
+                        }
+                    }
+                    getmatterprovisionextraproperties(optionsForGetmatterprovisionextraproperties, function (result) {
+                        console.log(result);
+                        vm.matterExtraFields = result.Fields;
+                        for (var i = 1; i <= vm.matterExtraFields.length; i++) {
+                            var order = (i % 2 == 0) ? 2 : 1;
+                            vm.matterExtraFields[i - 1].columnPosition = order; 
+                        }
+                        getFolderHierarchyApi();
+                        console.log(vm.matterExtraFields);
+                    });
+                }
+            }
+
+
+            // To get extra field properties values set by user.
+            function setAdditionalMatterPropertiesFieldsData() {
+                var Fields = [];
+
+                angular.forEach(vm.matterExtraFields, function (input) {
+                    var field = { FieldDisplayName: "", FieldName: "", Type: "", FieldValue: "", IsDisplayInUI: "true" }
+                    field.FieldDisplayName = input.name;
+                    field.FieldName = input.fieldInternalName;
+                    field.Type = input.type;
+                    field.IsDisplayInUI = input.displayInUI.toString();
+                    if (input.type == "Dropdown") {
+                        if (input.value == undefined || input.value.choiceValue == null || input.value.choiceValue == undefined) {
+                            field.FieldValue = ""
+                        }
+                        else {
+                            field.FieldValue = input.value.choiceValue
+                        }
+                    } else if (input.type == "MultiChoice") {
+                        field.FieldValue = "";
+                        if (input.value != undefined) {
+                            angular.forEach(input.value, function (val) {
+                                if (val.choiceValue == null || val.choiceValue == undefined) {
+                                    val.choiceValue = "";
+                                }
+                                field.FieldValue += field.FieldValue == "" ? val.choiceValue : "," + val.choiceValue;
+                            });
+                        }
+                    } else {
+                        if (input.value == null || input.value == undefined) {
+                            input.value = "";
+                        }
+                        field.FieldValue = input.value;
+                    }
+                    if (-1 == Fields.indexOf(field)) {
+                        Fields.push(field);
+                    }
+                });
+                return Fields;
+            }
+
+            //#endregion
+
+            //#endregion
+
+
         }
     ]);
 
@@ -2412,6 +2722,6 @@
             }
             return filteredresult;
         };
-    })
-    //#endregion
+    });
+    //#endregion   
 })();

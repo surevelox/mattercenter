@@ -499,7 +499,7 @@ textarea {
     top: 0px;
     background: #fff;
     border: 0px solid #d4d4d4;
-}
+} 
 
 .showExpandIcon:before {
     content: url("../Images/Column_Picker_Expand.png");
@@ -897,6 +897,9 @@ textarea {
     font-weight: 600;
     font-family: Segoe UI;
 }
+.dashboardCancelBtn{
+    margin-left:10px;
+}
 
 .clientdropinner {
     position: absolute;
@@ -918,6 +921,10 @@ textarea {
     position: absolute;
     top: 82px;
     padding: 0;
+}
+.docsortbydashboard{
+    left: -30px ;
+    top:36px ;
 }
 
 .sortbymatters {
@@ -1385,7 +1392,7 @@ textarea {
 
 .navtabs ul li {
     z-index: 3;
-    outline: none !important;
+    /*outline: none !important;*/
 }
 
     .navtabs ul li a {
@@ -1399,11 +1406,15 @@ textarea {
 
 #matterMain div, #matterMain figure {
     outline: none !important;
-}
+} 
 
 #matterCenterHeader div :focus {
     outline: dotted !important;
 }
+.ui-grid-icon-container:focus{
+          border: 1px dashed !important;
+          speak-as:spell-out
+    }
 
 .mainsort {
     position: absolute;
@@ -1455,7 +1466,7 @@ textarea {
 
 .docDashboardInnerLoader {
     position: absolute;
-    top: 28%;
+    top: 31%;
     left: 40%;
 }
 
@@ -1589,4 +1600,85 @@ input[type=checkbox]:focus, input[type=radio]:focus,a.ms-Button:focus, button:fo
     outline:dotted 3px !important;
 }
 
+.offscreen {
+        display:none
+    }
+
+.gridHeaderColumnsFloat {
+        float:left
+    }
+
+.dropdown-menu-home {
+    top: 100%;
+    left: 0px;
+    z-index: 1000;
+    float: left;
+    min-width: 160px;
+    padding: 5px 0;
+    margin: 2px 0 0;
+    font-size: 14px;
+    text-align: left;
+    list-style: none;
+    background-color: #fff;
+    -webkit-background-clip: padding-box;
+    background-clip: padding-box;    
+}
+
+.height222 {
+    height: 222px !important;
+}
+.tabActive{
+   outline: 1px black !important;
+}
+
+.tabInActive{
+   outline: none !important;
+}
+
+a.skip-main {
+    left:-999px;
+    position:absolute;
+    top:auto;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    z-index:-999;
+}
+a.skip-main:focus, a.skip-main:active {
+    color: #fff;
+    background-color:#0072c6;
+    left: auto;
+    top: auto;
+    width: auto;
+    height: auto;
+    overflow:auto;
+    margin: 10px 35%;
+    padding:5px;
+    border-radius: 0px;
+    border:px solid #2b579a;
+    text-align:center;
+    font-size:1.0em;
+    z-index:100000;
+}
+
+::-webkit-input-placeholder { /* Chrome */
+      color:  #505050 !important;
+      opacity: 1;
+    }
+    :-ms-input-placeholder { /* IE 10+ */
+      color:  #505050 !important;
+      opacity: 1;
+    }
+    ::-moz-placeholder { /* Firefox 19+ */
+      color:  #505050 !important;
+      opacity: 1;
+    }
+    :-moz-placeholder { /* Firefox 4 - 18 */
+      color:  #505050 !important;
+      opacity: 1;
+    }
+
+    .showDocDashboard:focus{
+        border:1ps dotted black;
+    }
 

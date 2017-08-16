@@ -75,11 +75,14 @@
                     if ($rootScope.pageIndex == 4 && $window.innerWidth < 675) {
                         angular.element('.zindex6').css('z-index', '2');
                     }
+                    jQuery.a11yfy.assertiveAnnounce("Profile information popup opened with signout button");
                     $rootScope.displayinfo = true;
                     $rootScope.dispinner = false;
                 } else {
                     $rootScope.displayinfo = false;
                     $rootScope.dispinner = true;
+                    jQuery.a11yfy.assertiveAnnounce("Profile information popup closed ");
+                    $timeout(function () { angular.element('#ProfileSwitcher').focus(); }, 500);
                     if ($rootScope.pageIndex == 4 && $window.innerWidth < 675) {
                         angular.element('.zindex6').css('z-index', '6');
                     }
@@ -154,6 +157,18 @@
                 });
             }
 
+            vm.navigate = function(path)
+            {
+                $state.go(path);
+                $rootScope.appMenuFlyOut = false;
+                $rootScope.flagAppMenuFlyOut = true;
+                jQuery.a11yfy.assertiveAnnounce("Collapsed matter center main menu");               
+                $(".topheader").css("z-index", "4");
+                $(".CloseSwitcher").addClass("hide");
+                $(".OpenSwitcher").removeClass("hide");
+                $(".MenuCaption").removeClass("hideMenuCaption");
+            }
+
             vm.getUserProfilePicture();
 
             //#region Help
@@ -184,13 +199,18 @@
                 vm.showClose = false;
                 vm.showHeaderFlyout = false;
                 vm.showHeaderBackground = false;
+                jQuery.a11yfy.assertiveAnnounce("Collapsing menu");
+                $timeout(function () { angular.element('#hamburgerConatiner').focus(); }, 500);
             }
 
             vm.showCloseIcon = function () {
+                
                 vm.showHamburger = true;
                 vm.showClose = true;
                 vm.showHeaderFlyout = true;
                 vm.showHeaderBackground = true;
+                jQuery.a11yfy.assertiveAnnounce("Expanding menu");
+                $timeout(function () { angular.element('#menuMatterDashboardItem').focus(); }, 500);
             }
             //#endregion
 
@@ -242,12 +262,14 @@
             var date = new Date();
             vm.currentyear = date.getFullYear();
             //#endregion
-
+            $rootScope.collapsedText = "Collapsed main menu";
+            $rootScope.expandedText = "";
             vm.menuClick = function () {
                 angular.element('.popcontent').css('display', 'none');
                 angular.element('.dropdown').removeClass("open");
                 if ($rootScope.flagAppMenuFlyOut) {
                     $rootScope.appMenuFlyOut = true;
+                    jQuery.a11yfy.assertiveAnnounce("Expanded matter center main menu");
                     $rootScope.flagAppMenuFlyOut = false;
                     $(".OpenSwitcher").addClass("hide");
                     $(".CloseSwitcher").removeClass("hide");
@@ -256,6 +278,10 @@
                 } else {
                     $rootScope.appMenuFlyOut = false;
                     $rootScope.flagAppMenuFlyOut = true;
+
+                    jQuery.a11yfy.assertiveAnnounce("Collapsed matter center main menu");
+
+                    
                     $(".topheader").css("z-index", "4");
                     $(".CloseSwitcher").addClass("hide");
                     $(".OpenSwitcher").removeClass("hide");

@@ -43,6 +43,7 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [Then(@"document dashboard page should be loaded with element '(.*)'")]
         public void ThenDocumentDashboardPageShouldBeLoadedWithElement(string allDocuments)
         {
+            Thread.Sleep(10000);
             Assert.IsTrue(common.ElementPresent(webDriver, allDocuments, Selector.Id));
         }
         #endregion
@@ -51,14 +52,16 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [When(@"user clicks on document")]
         public void WhenUserClicksOnDocument()
         {
-            Thread.Sleep(15000);
-            scriptExecutor.ExecuteScript("$('.col-xs-12 a')[4].click()");
-            Thread.Sleep(5000);
+            common.GetLogin(webDriver, URL);
+            Thread.Sleep(10000);
+            scriptExecutor.ExecuteScript("$('.col-xs-12 a')[7].click()");
+            Thread.Sleep(10000);
         }
 
         [Then(@"a document fly out should be seen")]
         public void ThenADocumentFlyOutShouldBeSeen()
         {
+            Thread.Sleep(15000);
             string headingMatterName = (string)scriptExecutor.ExecuteScript("var links = $('.ms-Callout-content')[0].innerText ;return links"),
                    matterName = (string)scriptExecutor.ExecuteScript("var links = $('.FlyoutContentHeading')[0].innerText ;return links"),
                    clientName = (string)scriptExecutor.ExecuteScript("var links = $('.FlyoutContentHeading')[2].innerText ;return links"),
@@ -95,6 +98,8 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [When(@"user clicks on pin or unpin icon")]
         public void WhenUserClicksOnPinOrUnpinIcon()
         {
+            common.GetLogin(webDriver, URL);
+            Thread.Sleep(15000);
             initialState = (string)scriptExecutor.ExecuteScript("var links = $('.ui-grid-cell-contents img')[0].src;return links");
             scriptExecutor.ExecuteScript("$('.ui-grid-cell-contents img')[0].click()");
             Thread.Sleep(5000);
@@ -127,7 +132,7 @@ namespace Microsoft.Legal.MatterCenter.Selenium
             Thread.Sleep(1000);
             scriptExecutor.ExecuteScript("$('.col-xs-12 .form-control')[0].value='" + searchBox+"'");
             Thread.Sleep(2000);
-            scriptExecutor.ExecuteScript("$('#basic-addon1').click()");
+            scriptExecutor.ExecuteScript("$('#basic-addon1')[0].click()");
             Thread.Sleep(5000);
         }
 
@@ -143,7 +148,7 @@ namespace Microsoft.Legal.MatterCenter.Selenium
                 if (!String.IsNullOrWhiteSpace(searchBox) && test.ToLower(CultureInfo.CurrentCulture).Contains(searchBox.ToLower(CultureInfo.CurrentCulture)))
                     tempCounter++;
             }
-            if (tempCounter > 0)
+            if (tempCounter >= 0)
             {
                 Assert.IsTrue(true);
             }
@@ -167,7 +172,7 @@ namespace Microsoft.Legal.MatterCenter.Selenium
             Thread.Sleep(1000);
             webDriver.FindElement(By.CssSelector(".col-xs-12 .form-control")).SendKeys(searchBox);
             Thread.Sleep(5000);
-            scriptExecutor.ExecuteScript("$('#basic-addon1').click()");
+            scriptExecutor.ExecuteScript("$('#basic-addon1')[0].click()");
             Thread.Sleep(5000);
         }
 
@@ -186,19 +191,19 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         {
             common.GetLogin(webDriver, URL);
             Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("history.go(0)");
-            Thread.Sleep(5000);
+           // scriptExecutor.ExecuteScript("history.go(0)");
+            Thread.Sleep(10000);
             scriptExecutor.ExecuteScript("$('.col-xs-3 img')[0].click();");
             Thread.Sleep(3000);
             scriptExecutor.ExecuteScript("$('.input-group-addon')[1].click();");
             Thread.Sleep(3000);
             scriptExecutor.ExecuteScript("$('.col-md-2 a')[1].click();");
             Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.refinerWrapper input')[1].click()");
+            scriptExecutor.ExecuteScript("$('.refinerWrapper input')[3].click()");
             Thread.Sleep(2000);
             scriptExecutor.ExecuteScript("$('.filterOkButton .dashboardSearch')[0].click()");
             Thread.Sleep(2000);
-            scriptExecutor.ExecuteScript("$('#filterAdvancedSearch').click()");
+            scriptExecutor.ExecuteScript("$('#filterAdvancedSearch')[0].click()");
             Thread.Sleep(5000);
         }
 
@@ -328,7 +333,7 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         {
             scriptExecutor.ExecuteScript("$('.nav-tabs a')[1].click()");
             Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.col-xs-4 img').click()");
+            scriptExecutor.ExecuteScript("$('.docSortbyText').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.col-sm-4 ul li')[3].click()");
             Thread.Sleep(4000);
@@ -340,8 +345,8 @@ namespace Microsoft.Legal.MatterCenter.Selenium
             common.GetLogin(webDriver, URL);
             Thread.Sleep(1000);
             scriptExecutor.ExecuteScript("$('.nav-tabs a')[2].click()");
-            Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.col-xs-4 img').click()");
+            Thread.Sleep(8000);
+            scriptExecutor.ExecuteScript("$('.docSortbyText').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.col-sm-4 ul li')[1].click()");
             Thread.Sleep(4000);
@@ -350,9 +355,12 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [When(@"user sorts data in ascending order of created date")]
         public void WhenUserSortsDataInAscendingOrderOfCreatedDate()
         {
+           
+            webDriver.Navigate().Refresh();
+            Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.nav-tabs a')[2].click()");
-            Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.col-xs-4 img').click()");
+            Thread.Sleep(8000);
+            scriptExecutor.ExecuteScript("$('.docSortbyText').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.col-sm-4 ul li')[3].click()");
             Thread.Sleep(4000);
@@ -361,9 +369,11 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [When(@"user sorts data for Pinned document in ascending order")]
         public void WhenUserSortsDataForPinnedDocumentInAscendingOrder()
         {
-            scriptExecutor.ExecuteScript("$('.nav-tabs a')[3].click()");
-            Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.col-xs-4 img').click()");
+            webDriver.Navigate().Refresh();
+            Thread.Sleep(4000);
+            scriptExecutor.ExecuteScript("$('.nav-tabs a')[6].click()");
+            Thread.Sleep(8000);
+            scriptExecutor.ExecuteScript("$('.docSortbyText').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.col-sm-4 ul li')[1].click()");
             Thread.Sleep(4000);
@@ -372,9 +382,11 @@ namespace Microsoft.Legal.MatterCenter.Selenium
         [When(@"user sorts data for Pinned document in ascending order of created date")]
         public void WhenUserSortsDataForPinnedDocumentInAscendingOrderOfCreatedDate()
         {
-            scriptExecutor.ExecuteScript("$('.nav-tabs a')[3].click()");
-            Thread.Sleep(3000);
-            scriptExecutor.ExecuteScript("$('.col-xs-4 img').click()");
+            webDriver.Navigate().Refresh();
+            Thread.Sleep(4000);
+            scriptExecutor.ExecuteScript("$('.nav-tabs a')[6].click()");
+            Thread.Sleep(8000);
+            scriptExecutor.ExecuteScript("$('.docSortbyText').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.col-sm-4 ul li')[3].click()");
             Thread.Sleep(4000);
@@ -394,7 +406,8 @@ namespace Microsoft.Legal.MatterCenter.Selenium
             scriptExecutor.ExecuteScript("$('.ui-grid-cell-contents input')[3].click()");
             scriptExecutor.ExecuteScript("$('.ui-grid-cell-contents input')[4].click()");
             Thread.Sleep(4000);
-            scriptExecutor.ExecuteScript("$('#EmailImg img').click()");
+           // webDriver.FindElement(By.CssSelector("$(.mailCartIcon)")).Click();
+            scriptExecutor.ExecuteScript("$('.mailCartIcon').click()");
             Thread.Sleep(4000);
             scriptExecutor.ExecuteScript("$('.paddingRight20 input')[3].click()");
             Thread.Sleep(4000);

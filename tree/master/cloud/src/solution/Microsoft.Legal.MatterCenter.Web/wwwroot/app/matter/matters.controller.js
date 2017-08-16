@@ -55,7 +55,7 @@
             vm.urlExists = false;
             vm.filternodata = false;
             vm.matterid = 2;
-
+            vm.matterExtraFields = [];
             vm.sortby = "desc";
             vm.sortexp = "matterModifiedDate";
             //#endregion
@@ -128,7 +128,33 @@
                 vm.OpenDateSort = undefined;
             }
             //#endregion
+            //#region to get the taxonomy term data
 
+            //input parameters building here for all the api's
+            var optionsForPracticeGroup = {
+                Client: {
+
+                    Url: configs.global.repositoryUrl
+                },
+                TermStoreDetails: {
+                    TermGroup: configs.taxonomy.termGroup,
+                    TermSetName: configs.taxonomy.practiceGroupTermSetName,
+                    CustomPropertyName: configs.taxonomy.subAreaOfLawCustomContentTypeProperty,
+                    DocumentTemplatesName: configs.taxonomy.subAreaOfLawDocumentContentTypeProperty,
+                }
+            }
+            // api call to get the complete taxonomy term store data
+            function getTaxonomyDetailsForPractice(optionsForPracticeGroup, callback) {
+                api({
+                    resource: 'matterResource',
+                    method: 'getTaxonomyDetails',
+                    data: optionsForPracticeGroup,
+                    success: callback
+                });
+            }
+            vm.taxonomyData = {};
+           
+            //#end region
             //#region For setting dynamic height to the grid
             vm.getTableHeight = function () {
                 return {
@@ -136,6 +162,10 @@
                 };
             };
             //#endregion
+
+            vm.ariaMessage = function(message){
+                jQuery.a11yfy.assertiveAnnounce(message);
+            }
 
             //#region To get the column header name
             vm.switchFuction = function (columnName) {
@@ -182,7 +212,7 @@
             };
             //#endregion
 
-            $templateCache.put('coldefheadertemplate.html', "<div><div role='button' class='ui-grid-cell-contents ui-grid-header-cell-primary-focus' col-index='renderIndex'><span class='ui-grid-header-cell-label ng-binding' title='Click to sort by'>{{ col.colDef.displayName }}<span id='asc{{col.colDef.field}}' style='float:right;display:none' class='padl10px'>↑</span><span id='desc{{col.colDef.field}}' style='float:right;display:none' class='padlf10'>↓</span></span></div></div>");
+            $templateCache.put('coldefheadertemplate.html', "<div><div  aria-label='{{ col.colDef.displayName }}'  class='ui-grid-cell-contents ui-grid-header-cell-primary-focus' col-index='renderIndex'><span class='ui-grid-header-cell-label ng-binding' tabindex='0' ng-focus='grid.appScope.vm.ariaMessage(\"Click to sort by \" ) '  title='Column name'>{{ col.colDef.displayName }}<span id='asc{{col.colDef.field}}' style='float:right;display:none' class='padl10px'>↑</span><span id='desc{{col.colDef.field}}' style='float:right;display:none' class='padlf10'>↓</span></span></div></div>");
 
             //#region To get the column schema and populate in column collection for grid with sorting of column display
             //Declaring column collection object.
@@ -198,7 +228,7 @@
                         width: value.width,
                         enableHiding: value.enableHiding,
                         cellTemplate: value.cellTemplate,
-                        headerCellTemplate: value.headerCellTemplate == "Custom" ? $templateCache.get('coldefheadertemplate.html').replace('Click to sort by', displaycolVal[1]) : value.headerCellTemplate,
+                        headerCellTemplate: value.headerCellTemplate == "Custom" ? $templateCache.get('coldefheadertemplate.html').replace('Click to sort by', displaycolVal[1]).replace('Column name', displaycolVal[1]) : value.headerCellTemplate,
                         position: value.position,
                         cellClass: value.cellClass,
                         headerCellClass: value.headerCellClass,
@@ -240,8 +270,12 @@
                     gridApi.selection.on.rowSelectionChanged($scope, function (row) {
                         vm.selectedRow.matterName = row.entity.matterName
                         vm.selectedRow.matterClientUrl = row.entity.matterClientUrl
-                        vm.selectedRow.matterGuid = row.entity.matterGuid
+                        vm.selectedRow.matterGuid = row.entity.matterGuid;
+                        vm.currentRow = row.entity;
                     });
+                    //$scope.gridApi.cellNav.on.navigate($scope, function (newRowCol, oldRowCol) {
+                    //    $scope.gridApi.selection.selectRow(newRowCol.row.entity);
+                    //})
                     $animate.enabled(gridApi.grid.element, false);
                     $scope.gridApi.core.on.sortChanged($scope, $scope.sortChanged);
                     $scope.sortChanged($scope.gridApi.grid, [vm.gridOptions.columnDefs[1]]);
@@ -372,7 +406,12 @@
                 OneNoteUrlExists(matterInformatiuonVM, function (response) {
                     if (data.hideUpload.toLowerCase().indexOf(loginUser) > -1) {
                         vm.hideUpload = false;
+
                     }
+                     else {
+                        $timeout(function () { angular.element('.ECBItem.ms-ContextualMenu-link.upload.canUpload').focus() }, 1000);
+                    }
+                    jQuery.a11yfy.assertiveAnnounce("Expanded matter search results context menu");
                     vm.urlExists = response.oneNoteUrlExists
                     vm.dropDownMenuLoader = true;
                     vm.dropDownMenu = true;
@@ -401,23 +440,55 @@
             vm.getFolderHierarchy = function (matterName, matterUrl, matterGUID) {
 
                 if ((matterName && matterName !== "") && (matterUrl && matterUrl !== "") && (matterGUID && matterGUID !== "")) {
-
+                    var row = $filter("filter")(vm.gridOptions.data, matterGUID);
+                    if (row.length > 0) {
+                        vm.currentRow = row[0];
+                    }
                     vm.selectedRow.matterName = matterName;
                     vm.selectedRow.matterClientUrl = matterUrl;
                     vm.selectedRow.matterGuid = matterGUID;
+                    vm.selectedRow = vm.currentRow;
                 }
-
-
                 vm.allAttachmentDetails = [];
+               
+                
+                ///function to get the default configurations of matter for select client
+                //check wheather contentCheck for the uploaded document is neccessary 
+                // also check if Additional matter Dialog box should be shown or not
+                //if yes get the taxonomoy api and check if custom property with name MatterProvisionExtraPropertiesContentType
+                //has been set or not. If that property has been set then get Additional Matter Properties and display the upload
+                //dialog box               
+                getContentCheckConfigurations(JSON.stringify(vm.selectedRow.matterClientUrl), function (response) {
+                    if (!response.isError) {
+                        var defaultMatterConfig = JSON.parse(response.code);
+                        vm.oUploadGlobal.bAllowContentCheck = defaultMatterConfig.IsContentCheck;
+                        if (defaultMatterConfig.ShowAdditionalPropertiesDialogBox && vm.currentRow.matterDefaultContentType) {
+                            getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
+                                if (!response.isError) {
+                                    vm.taxonomyData = response;
+                                    getAdditionalMatterProperties();
+                                }
+                            });
+                        }
+                        else {
+                            getFolderHierarchyApi();
+                        }
+                    }
+                    else {
+                        vm.oUploadGlobal.bAllowContentCheck = false;
+                    }
+                });               
+            }
+
+            // to get the matter document library folders
+            function getFolderHierarchyApi() {
                 var matterData = {
                     MatterName: vm.selectedRow.matterName,
                     MatterUrl: vm.selectedRow.matterClientUrl
                 };
-                vm.getContentCheckConfigurations(vm.selectedRow.matterClientUrl);
                 getFolderHierarchy(matterData, function (response) {
                     vm.foldersList = response.foldersList;
                     vm.uploadedFiles = [];
-
                     function getNestedChildren(arr, parent) {
                         var parentList = []
                         for (var i in arr) {
@@ -428,14 +499,11 @@
                                     arr[i].children = children;
                                     arr[i].active = parent == null ? true : false;
                                 }
-
                                 parentList.push(arr[i]);
-
                             }
                         }
                         return parentList
                     }
-
                     vm.foldersList = getNestedChildren(vm.foldersList, null);
                     if (vm.foldersList[0] !== null) { vm.showSelectedFolderTree(vm.foldersList[0]); }
 
@@ -529,6 +597,12 @@
                     }
                 }
 
+                if (vm.addtionalPropertiesAvaialbleForMatter) {
+                    attachmentRequestVM.ServiceRequest.DocumentExtraProperties = vm.matterExtraPropertiesValues;
+                }
+                
+
+
                 if (sourceFile.isEmail && sourceFile.isEmail === "true") {
                     vm.uploadEmail(attachmentRequestVM, draggedFile);
                 }
@@ -541,40 +615,99 @@
             //#region functionality to handle the files that has been dragged from the outlook
             vm.handleOutlookDrop = function (targetDrop, sourceFile) {
                 vm.oUploadGlobal.successBanner = false;
+                sourceFile.uploadSuccess = false;
                 vm.targetDrop = targetDrop;
                 vm.sourceFile = sourceFile;
-                sourceFile.uploadSuccess = false;
-                var isOverwrite = false;//Todo: Need to get from the config.js
-                var performContentCheck = false;//Todo: Need to get from the config.js
-                vm.isLoadingFromDesktopStarted = true;
-                var draggedFile = $filter("filter")(vm.allAttachmentDetails, sourceFile.attachmentId)[0];
-                mailOrDocUpload(targetDrop, sourceFile, isOverwrite, performContentCheck, draggedFile);
+                if (vm.addtionalPropertiesAvaialbleForMatter) {
+                    vm.FilesFromDesktopOrMail = "filesfromoutlook"
+                    jQuery('#UploadExtraMatterPropertiesModal').modal("show");
+                } else {
+                    var isOverwrite = false;
+                    var performContentCheck = false;
+                    var draggedFile = $filter("filter")(vm.allAttachmentDetails, sourceFile.attachmentId)[0];
+                    mailOrDocUpload(targetDrop, sourceFile, isOverwrite, performContentCheck, draggedFile);
+                }
+               
             }
             //#endregion
+            //#region  functionality to handle outlookdrop and desktop drop with extra document properties
 
+            vm.SaveDocPropertiesAndUpload = function (filesFromDesktopOrMail) {
+                jQuery('#UploadExtraMatterPropertiesModal').modal("hide");
+                vm.isLoadingFromDesktopStarted = true;
+                var documentProperties = undefined;
+                var matterExtraPropertiesValues = undefined;
+                //var attachmentRequestVM = vm.uploadedMailItemDetails.attachmentRequestVM;
+                if (vm.addtionalPropertiesAvaialbleForMatter) {
+                    documentProperties = setAdditionalMatterPropertiesFieldsData();
+                    // var sourceFile = vm.uploadedMailItemDetails.sourceFile;
+                    matterExtraPropertiesValues = {
+                        ContentTypeName: vm.matterProvisionExtraPropertiesContentTypeName,
+                        Fields: documentProperties
+                    }
+                    vm.matterExtraPropertiesValues = matterExtraPropertiesValues;
+                }
+                if (filesFromDesktopOrMail == "filesfromdesktop") {
+                    vm.uploadDesktopDroppedFiles(matterExtraPropertiesValues);
+                }
+                else {
+
+                    var isOverwrite = false;//Todo: Need to get from the config.js
+                    var performContentCheck = false;//Todo: Need to get from the config.js
+                    vm.isLoadingFromDesktopStarted = true;
+                    var draggedFile = $filter("filter")(vm.allAttachmentDetails, vm.sourceFile.attachmentId)[0];
+                    mailOrDocUpload(vm.targetDrop, vm.sourceFile, isOverwrite, performContentCheck, draggedFile);
+                }
+
+            }
+            //#endregion
             //#region functionality will handle the files that has been dragged from the user desktop
             vm.ducplicateSourceFile = [];
-            vm.handleDesktopDrop = function (targetDropUrl, sourceFiles, isOverwrite) {
+             vm.DesktopDroppedFiles = {};
+             vm.handleDesktopDrop = function (targetDropUrl, sourceFiles, isOverwrite) {
+                 vm.FilesFromDesktopOrMail = "filesfromdesktop";
+               // jQuery('#UploadExtraMatterPropertiesModal').modal("show");
+                vm.oUploadGlobal.successBanner = false;
+                vm.DesktopDroppedFiles = {};
+                vm.DesktopDroppedFiles.targetDropUrl = targetDropUrl;
+                vm.DesktopDroppedFiles.sourceFiles = sourceFiles;
+                vm.DesktopDroppedFiles.isOverwrite = isOverwrite;
+                if (vm.addtionalPropertiesAvaialbleForMatter) {
+                    vm.FilesFromDesktopOrMail = "filesfromdesktop";
+                    jQuery('#UploadExtraMatterPropertiesModal').modal("show");
+                } else {
+                    vm.uploadDesktopDroppedFiles(null);
+                }
+            }
+
+
+            vm.uploadDesktopDroppedFiles = function (matterExtraPropertiesValues) {
                 vm.oUploadGlobal.successBanner = false;
                 vm.isLoadingFromDesktopStarted = true;
+                var targetDropUrl=vm.DesktopDroppedFiles.targetDropUrl;
+                var sourceFiles= vm.DesktopDroppedFiles.sourceFiles;
+                var isOverwrite = vm.DesktopDroppedFiles.isOverwrite;
                 var fd = new FormData();
                 fd.append('targetDropUrl', targetDropUrl);
                 fd.append('folderUrl', targetDropUrl)
                 fd.append('documentLibraryName', vm.selectedRow.matterName)
                 fd.append('clientUrl', vm.selectedRow.matterClientUrl);
                 fd.append('AllowContentCheck', vm.oUploadGlobal.bAllowContentCheck);
+                matterExtraPropertiesValues = JSON.stringify(matterExtraPropertiesValues);
+                fd.append('DocumentExtraProperties', matterExtraPropertiesValues)
                 var nCount = 0;
                 angular.forEach(sourceFiles, function (file) {
                     fd.append('file', file);
                     fd.append("Overwrite" + nCount++, isOverwrite);
                 });
-
+                jQuery.a11yfy.assertiveAnnounce('file upload in progress');
                 $http.post("/api/v1/document/uploadfiles", fd, {
                     transformRequest: angular.identity,
                     headers: { 'Content-Type': undefined },
                     timeout: vm.oUploadGlobal.canceler.promise
                 }).then(function (response) {
                     vm.isLoadingFromDesktopStarted = false;
+
                     if (response.status == 200) {
                         if (response.data.length !== 0) {
                             var tempFile = [];
@@ -584,6 +717,7 @@
                                     vm.uploadedFiles.push(response.data[i]);
                                     tempFile.push(response.data[i]);
                                     vm.oUploadGlobal.successBanner = (tempFile.length == sourceFiles.length) ? true : false;
+                                    jQuery.a11yfy.assertiveAnnounce('file upload completed');
                                     vm.ducplicateSourceFile = vm.ducplicateSourceFile.filter(function (item) {
                                         return item.fileName !== response.data[i].fileName;
                                     });
@@ -634,20 +768,20 @@
                     vm.isLoadingFromDesktopStarted = false;
                     console.error('Gists error', response.status, response.data);
                 })
-
             }
             vm.uploadedFiles = [];
             //#endregion
 
             //#region functionality to handle when mail gets uploaded
             vm.uploadEmail = function (attachmentRequestVM, droppedAttachedFile) {
+                jQuery.a11yfy.assertiveAnnounce('mail attachment upload in progress');
                 uploadEmail(attachmentRequestVM, function (response) {
                     vm.showLoading = false;
                     var target = vm.targetDrop;
                     var source = vm.sourceFile;
                     //If the mail upload is success
                     if (response.code === "OK" && response.value === "Attachment upload success") {
-
+                        jQuery.a11yfy.assertiveAnnounce('mail attachment successfully uploaded to ' + vm.targetDrop.name);
                         var subject = Office.context.mailbox.item.subject;
                         subject = subject.substring(0, subject.lastIndexOf("."));
                         vm.mailUpLoadSuccess = true;
@@ -669,6 +803,7 @@
                         bAppendEnabled = attachmentEmailOverwriteConfiguration(selectedOverwriteConfiguration, isEmail);
                         response.contentCheck = response.value.split("|")[1];
                         response.value = response.value.split("|")[0];
+                        jQuery.a11yfy.assertiveAnnounce(response.value);
                         response.saveLatestVersion = "True";
                         response.cancel = "True";
                         response.append = bAppendEnabled;
@@ -685,6 +820,7 @@
                     else if (response.code === "IdenticalContent") {
                         var dupliFile = vm.ducplicateSourceFile[0];
                         dupliFile.value = dupliFile.value + "<br/><br/>" + response.value;
+                        jQuery.a11yfy.assertiveAnnounce(dupliFile.value);
                         dupliFile.saveLatestVersion = "True";
                         dupliFile.cancel = "True";
                         dupliFile.append = true;
@@ -726,6 +862,7 @@
 
             //#region Call back function when attachment gets uploaded
             vm.uploadAttachment = function (attachmentRequestVM, droppedAttachedFile) {
+                jQuery.a11yfy.assertiveAnnounce("attachment upload in progress");
                 vm.oUploadGlobal.successBanner = false;
                 uploadAttachment(attachmentRequestVM, function (response) {
                     vm.isLoadingFromDesktopStarted = false;
@@ -750,6 +887,8 @@
                             vm.targetDrop.name = vm.targetDrop.name == vm.selectedRow.matterGuid ? vm.selectedRow.matterName : vm.targetDrop.name;
 
                         }
+
+                        jQuery.a11yfy.assertiveAnnounce("attachment successfully uploaded to " + vm.targetDrop.name);
                         droppedAttachedFile.uploadedFolder = vm.targetDrop.name;
                         vm.docUploadedFolder = vm.targetDrop.name;
                         droppedAttachedFile.uploadSuccess = true;
@@ -768,6 +907,7 @@
                         bAppendEnabled = attachmentEmailOverwriteConfiguration(selectedOverwriteConfiguration, isEmail);
                         response.contentCheck = response.value.split("|")[1];
                         response.value = response.value.split("|")[0];
+                        jQuery.a11yfy.assertiveAnnounce(response.value);
                         response.saveLatestVersion = "True";
                         response.cancel = "True";
                         response.append = bAppendEnabled;
@@ -788,6 +928,7 @@
                         dupliFile.saveLatestVersion = "True";
                         dupliFile.cancel = "True";
                         dupliFile.contentCheck = "False";
+                        jQuery.a11yfy.assertiveAnnounce(dupliFile.value);
                     }
                 });
             }
@@ -1287,6 +1428,7 @@
 
             //#region for setting the mattername in dropdown
             vm.SetMatters = function (id, name) {
+               
                 vm.pinnedorunpinned = false;
                 vm.clearAllFilter();
                 vm.clearAllFiltersofSort();
@@ -1969,6 +2111,7 @@
                                 vm.lazyloader = true;
                                 vm.divuigrid = true;
                                 vm.nodata = false;
+                                forExpandingGridMenu();
                                 if (!vm.globalSettings.isBackwardCompatible) {
                                     $interval(function () { vm.showSortExp(); }, 2000, angular.element(".ui-grid-canvas").css('visibility') != 'hidden');
                                 }
@@ -2013,11 +2156,12 @@
             //#endregion
 
             //#region To run GetMatters function on page load
-            vm.SetMatters(vm.matterid, vm.mattername);
+            vm.SetMatters( vm.matterid, vm.mattername);
             //End 
 
             //#region Written for unpinning the matter 
             vm.UnpinMatter = function (data) {
+                jQuery("#jquery-a11yfy-assertiveannouncer").empty()
                 vm.pinnedorunpinned = true;
                 vm.lazyloader = false;
                 vm.divuigrid = false;
@@ -2032,6 +2176,7 @@
                 }
                 UnpinMatters(unpinRequest, function (response) {
                     if (response.isMatterUnPinned) {
+                        jQuery.a11yfy.assertiveAnnounce(data.entity.matterName + ' unpinned successfully');
                         $timeout(function () { vm.GetMatters(vm.matterid); $interval(function () { vm.showSortExp(); }, 5000, 3); }, 500);
                     }
                 });
@@ -2040,6 +2185,7 @@
 
             //#region Functionality for pinning the matter.
             vm.PinMatter = function (data) {
+                jQuery("#jquery-a11yfy-assertiveannouncer").empty()
                 vm.pinnedorunpinned = true;
                 vm.lazyloader = false;
                 vm.divuigrid = false;
@@ -2068,6 +2214,7 @@
                 }
                 PinMatters(pinRequest, function (response) {
                     if (response.isMatterPinned) {
+                        jQuery.a11yfy.assertiveAnnounce(data.entity.matterName + ' pinned successfully');
                         $timeout(function () { vm.GetMatters(vm.matterid); $interval(function () { vm.showSortExp(); }, 5000, 3); }, 500);
                     }
                 });
@@ -2123,12 +2270,14 @@
             //#region For declaring modifiedstartdate and modifiedenddate variable.
             vm.modDateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             };
 
             vm.modEndDateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             }
 
             $scope.$watch('vm.modStartDate', function (newval, oldval) {
@@ -2216,7 +2365,8 @@
             //Start for open date options
             vm.dateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             };
 
             //#region Functionality to get result as per selection of created date.
@@ -2268,7 +2418,8 @@
 
             vm.endDateOptions = {
                 formatYear: 'yy',
-                maxDate: new Date()
+                maxDate: new Date(),
+                shortcutPropagation: true
             }
 
             $scope.$watch('vm.startDate', function (newval, oldval) {
@@ -2780,10 +2931,20 @@
                     if (!response.isError) {
                         var defaultMatterConfig = JSON.parse(response.code);
                         vm.oUploadGlobal.bAllowContentCheck = defaultMatterConfig.IsContentCheck;
+                        if (defaultMatterConfig.ShowAdditionalPropertiesDialogBox) {
+                            getTaxonomyDetailsForPractice(optionsForPracticeGroup, function (response) {
+                                if (!response.isError) {
+                                    vm.taxonomyData = response;
+                                }
+                            });
+                        }
+                        
 
                     } else {
                         vm.oUploadGlobal.bAllowContentCheck = false;
                     }
+
+
                 });
             }
             //#endregion
@@ -2994,18 +3155,22 @@
                 if (name === vm.matterConfigContent.GridColumn1Header) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertyMatterName + "";
                     vm.filtername = vm.matterConfigContent.GridColumn1Header;
+                    $timeout(function () { angular.element('#matMatterName').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn3Header && !vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertyClientName + "";
                     vm.filtername = vm.matterConfigContent.GridColumn3Header;
+                    $timeout(function () { angular.element('#matMatterClientName').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn2Header && vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertyPracticeGroup + "";
                     vm.filtername = vm.matterConfigContent.GridColumn2Header;
+                    $timeout(function () { angular.element('#matPracticeGroup').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn3Header && vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertyAreaOfLaw + "";
                     vm.filtername = vm.matterConfigContent.GridColumn3Header;
+                    $timeout(function () { angular.element('#matAreaLaw').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn5Header) {
                     if (!vm.globalSettings.isBackwardCompatible) {
@@ -3015,25 +3180,31 @@
                     else {
                         vm.filtername = vm.matterConfigContent.GridColumn5Header;
                     }
+                    $timeout(function () { angular.element('#matRespAttorney').focus() }, 1000);
                 }
                 //AOL
                 if (name === vm.matterConfigContent.GridColumn6Header && !vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertySubAreaOfLaw + "";
                     vm.filtername = vm.matterConfigContent.GridColumn6Header;
+                    $timeout(function () { angular.element('#matSubAreaLaw').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn6Header && vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertyMatterId + "";
                     vm.filtername = vm.matterConfigContent.GridColumn6Header;
+                    $timeout(function () { angular.element('#matMatterId').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn4Header && vm.globalSettings.isBackwardCompatible) {
                     vm.searchexp = "" + vm.configSearchContent.ManagedPropertySubAreaOfLaw + "";
                     vm.filtername = vm.matterConfigContent.GridColumn4Header;
+                    $timeout(function () { angular.element('#matSubAreaLaw').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn7Header) {
                     vm.filtername = vm.matterConfigContent.GridColumn7Header;
+                    $timeout(function () { angular.element('#matOpenCreatedDate').focus() }, 1000);
                 }
                 if (name === vm.matterConfigContent.GridColumn4Header && !vm.globalSettings.isBackwardCompatible) {
                     vm.filtername = vm.matterConfigContent.GridColumn4Header;
+                    $timeout(function () { angular.element('#matModifiDate').focus() }, 1000);
                 }
                 vm.dateOptions.maxDate = new Date();
                 vm.modDateOptions.maxDate = new Date();
@@ -3106,6 +3277,96 @@
                 vm.lazyloader = true;
             });
 
+            //#region accessibility bug fixses
+            //keycode 13 for enterkey
+            //keycode 9 for tab
+            //keycode 38 up arrow and 40 for down arrow
+            //keycode 27 for esc key
+            //to handle enter key press event on the ECB menu for accessibility issue fix
+            vm.openContextMenu = function (event, currentRow) {
+                if (event.keyCode === 13) {
+                    $('.popcontent').css('display', 'none');
+                    angular.element($(event.currentTarget.children[0])).addClass('open');
+                    vm.checkUrlExists(currentRow)
+                }
+                else if (event.keyCode != 38 && event.keyCode != 40 && event.keyCode != 9) {
+                    angular.element($(event.currentTarget.children[0])).removeClass('open');
+                }
+            }
+
+            //to handle enter key press event to display matter flyout menu for accessibility issue fix
+            vm.openMatterFlyout = function (event) {
+                if (event.keyCode === 13) {
+                    angular.element($(event.currentTarget.children[0])).click();
+                }
+                else if (event.keyCode != 38 && event.keyCode != 40 && event.keyCode != 9) {
+                    $('.popcontent').css('display', 'none');
+                }
+            }
+            //Generic function to handle Accessability Fixes for KeyBoard Navigation
+            vm.mattersCombobox = function (event, id) {
+                if (event.keyCode == 13) {
+                    angular.element('#comboMattersOpt').addClass("open");
+                }
+                else if (id == 3 && event.keyCode == 9) {
+                    angular.element('#comboMattersOpt').removeClass('open');
+                }
+                else if (event.keyCode == 27) {
+                    angular.element('#comboMattersOpt').removeClass('open');
+                }
+            }
+
+            vm.keydownFunction = function (event, funcName, currentRow) {
+                if (event.keyCode != 38 && event.keyCode != 40 && event.keyCode != 9) {                    
+                    angular.element($(event.currentTarget.parentElement.parentElement.parentElement)).removeClass('open');
+                    $scope.gridApi.selection.unSelectRow(vm.currentRow);
+                    jQuery.a11yfy.assertiveAnnounce("Collapsing matter search results context menu ");
+                }
+                switch (funcName.toLowerCase()) {
+                    //If the user clicks on upload link with in the ECB menu  and presses Enter key
+                    case 'upload': {
+                        if (vm.hideUpload) {
+                            if (event.keyCode === 13) {
+                                jQuery.a11yfy.assertiveAnnounce("upload to matter modal is getting openend");
+                                vm.Openuploadmodal(currentRow.matterName, currentRow.matterClientUrl, currentRow.matterGuid);
+                                jQuery.a11yfy.assertiveAnnounce("upload to matter modal is openend");
+                            }
+                        }
+                        break;
+                    }
+                        //If the user clicks on matteronenoteurl link with in the ECB menu and presses Enter key
+                    case 'matteronenoteurl': {
+                        if (event.keyCode === 13) {
+                            $window.open(event.currentTarget.children[0].href, "_blank");
+                        }
+                        break;
+                    }
+                        //If the user clicks on viewmatterdetails link with in the ECB menu and presses Enter key
+                    case 'viewmatterdetails': {
+                        if (event.keyCode === 13) {
+                            vm.viewMatterDetails(currentRow.matterClientUrl, currentRow.matterGuid)
+                        }
+                        break;
+                    }
+                        //If the user clicks on pinorunpin link with in the ECB menu  and presses Enter key
+                        //If the user presses tab for the last menu, we need to close the ECB menu
+                    case 'pinorunpin': {
+                        if (event.keyCode === 13) {
+                            currentRow.entity.MatterInfo === undefined ? vm.PinMatter(currentRow) : vm.UnpinMatter(currentRow);
+
+                        } else if (event.keyCode === 9 ) {                           
+                            angular.element($(event.currentTarget.parentElement.parentElement.parentElement)).removeClass('open');
+                            jQuery.a11yfy.assertiveAnnounce("Collapsing matter search results context menu ");
+                        }
+                        break;
+                    }
+
+                }
+
+                
+            }
+            //#endregion
+
             //#region For clearing search on filter.
             vm.clearFiltersForSearch = function () {
                 vm.attorneySearchTerm = "";
@@ -3148,6 +3409,182 @@
             angular.element('#menuitem-1').dblclick(function (e) {
                 e.preventDefault();
             });
+
+            vm.pageLoadCompleted = function () {
+                jQuery.a11yfy.assertiveAnnounce("Matters search page loaded successfully");
+            }
+
+
+
+            function cleanArray(actual) {
+                var newArray = new Array();
+                for (var i = 0; i < actual.length; i++) {
+                    if (actual[i] && actual[i] != "") {
+                        newArray.push(actual[i]);
+                    }
+                }
+                return newArray;
+            }
+
+            //#region for additional matter properties
+             vm.addtionalPropertiesAvaialbleForMatter = false;
+            //#region function to get content type name from the term
+            function getAdditionalContentTypeName() {
+                vm.addtionalPropertiesAvaialbleForMatter = false;
+                vm.matterExtraPropertiesValues =null;
+                var getExtraMatterProp = false;
+                var levels = vm.taxonomyData.levels;
+                var termData = vm.taxonomyData.level1;
+                angular.forEach(termData, function (levelOneTerm) {
+                    var practiceGroupItem = vm.currentRow.matterPracticeGroup.split(";");
+                    practiceGroupItem = cleanArray(practiceGroupItem);
+                    for (var i = 0; i < practiceGroupItem.length; i++) {
+                        if (levelOneTerm.termName.trim().toLowerCase() == practiceGroupItem[i].trim().toLowerCase()) {
+                            angular.forEach(levelOneTerm.level2, function (levelTwoTerm) {
+                                var areaOfLawItem = vm.currentRow.matterAreaOfLaw.split(";");
+                                areaOfLawItem = cleanArray(areaOfLawItem);
+                                for (var j = 0; j < areaOfLawItem.length; j++) {
+                                    if (levelTwoTerm.termName.trim().toLowerCase() == areaOfLawItem[j].trim().toLowerCase()) {
+                                        angular.forEach(levelTwoTerm.level3, function (levelThreeTerm) {
+                                            if (levels == 3) {
+                                                if (levelThreeTerm.termName.trim().toLowerCase() == vm.currentRow.matterDefaultContentType.trim().toLowerCase()) {
+                                                    getExtraMatterProp = IsCustomPropertyPresentInTerm(levelThreeTerm);
+                                                }
+
+                                            } else if (levels == 4) {
+                                                angular.forEach(levelThreeTerm.level4, function (levelFourTerm) {
+                                                    if (levelFourTerm.termName.trim().toLowerCase() == vm.currentRow.matterDefaultContentType.trim().toLowerCase()) {
+                                                        getExtraMatterProp = IsCustomPropertyPresentInTerm(levelFourTerm);
+                                                    }
+                                                });
+                                            }
+                                            else if (levels == 5) {
+                                                angular.forEach(levelThreeTerm.level4, function (levelFourTerm) {
+                                                    angular.forEach(levelFourTerm.level5, function (levelFiveTerm) {
+                                                        if (levelFiveTerm.termName.trim().toLowerCase() == vm.currentRow.matterDefaultContentType.trim().toLowerCase()) {
+                                                            getExtraMatterProp = IsCustomPropertyPresentInTerm(levelFiveTerm);
+                                                        }
+                                                    });
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                   
+                });
+                vm.addtionalPropertiesAvaialbleForMatter = getExtraMatterProp;
+                return getExtraMatterProp;
+            }
+            //function to get the contenttype name from the term customproperty
+            vm.matterProvisionExtraPropertiesContentTypeName = "";
+            function IsCustomPropertyPresentInTerm(data) {
+                var additionalMatterPropSettingName = configs.taxonomy.matterProvisionExtraPropertiesContentType;
+                if (data[additionalMatterPropSettingName] && data[additionalMatterPropSettingName] != "") {
+                    vm.matterProvisionExtraPropertiesContentTypeName = data[additionalMatterPropSettingName];
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
+
+
+            //API call to retrieve matter extra properties.
+            function getmatterprovisionextraproperties(options, callback) {
+                api({
+                    resource: 'matterResource',
+                    method: 'getmatterprovisionextraproperties',
+                    data: options,
+                    success: callback
+                });
+            }
+
+           
+            // this function will get additional matter properties that needs to be displayed for the users to be override 
+            // when the document is getting uploaded.  
+            function getAdditionalMatterProperties() {
+                var extraMatterPropertiesAvailableForMatter = getAdditionalContentTypeName();
+                if (extraMatterPropertiesAvailableForMatter) {
+                    var additionalMatterPropSettingName = vm.matterProvisionExtraPropertiesContentTypeName;
+                    var optionsForGetmatterprovisionextraproperties = {
+                        Client: {
+                            Url: vm.selectedRow.matterClientUrl,
+                            Name: vm.selectedRow.matterName
+                        },
+                        MatterExtraProperties: {
+                            ContentTypeName: additionalMatterPropSettingName
+                        }
+                    }
+                    getmatterprovisionextraproperties(optionsForGetmatterprovisionextraproperties, function (result) {
+                        console.log(result);
+                        vm.matterExtraFields = result.Fields;
+                        for (var i = 1; i <= vm.matterExtraFields.length; i++) {
+                            var order = (i % 2 == 0) ? 2 : 1;
+                            vm.matterExtraFields[i - 1].columnPosition = order;                           
+                        }
+                        getFolderHierarchyApi();
+                        console.log(vm.matterExtraFields);
+                    });
+                }
+            }
+
+
+            // To set additional matter properties to sent to the server for saving
+            function setAdditionalMatterPropertiesFieldsData() {
+                var Fields = [];
+                angular.forEach(vm.matterExtraFields, function (input) {
+                    var field = { FieldDisplayName: "", FieldName: "", Type: "", FieldValue: "", IsDisplayInUI: "true" }
+                    field.FieldDisplayName = input.name;
+                    field.FieldName = input.fieldInternalName;
+                    field.Type = input.type;
+                    field.IsDisplayInUI = input.displayInUI.toString();
+                    if (input.type == "Dropdown") {
+                        if (input.value == undefined || input.value.choiceValue == null || input.value.choiceValue == undefined) {
+                            field.FieldValue = ""
+                        }
+                        else {
+                            field.FieldValue = input.value.choiceValue
+                        }
+                    } else if (input.type == "MultiChoice") {
+                        field.FieldValue = "";
+                        if (input.value != undefined) {
+                            angular.forEach(input.value, function (val) {
+                                if (val.choiceValue == null || val.choiceValue == undefined) {
+                                    val.choiceValue = "";
+                                }
+                                field.FieldValue += field.FieldValue == "" ? val.choiceValue : "," + val.choiceValue;
+                            });
+                        }
+                    } else {
+                        if (input.value == null || input.value == undefined) {
+                            input.value = "";
+                        }
+                        field.FieldValue = input.value;
+                    }
+                    if (-1 == Fields.indexOf(field)) {
+                        Fields.push(field);
+                    }
+                });
+                return Fields;
+            }
+
+            //#endregion
+            //#region for grid menu
+            function forExpandingGridMenu() {
+                $interval(function () {
+                    var elem = $($('.ui-grid-icon-container')[0]);
+                    elem.attr("title", "grid menu")
+                    elem.on("focus", function () {
+                        jQuery.a11yfy.assertiveAnnounce("use shift enter key to expand grid menu");
+                    });
+
+                }, 5000);
+            }
+            //#endregion
+
         }]);
 
     //#region For adding custom filter 

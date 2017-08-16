@@ -56,6 +56,7 @@ namespace Microsoft.Legal.MatterCenter.Repository
         private IUsersDetails userDetails;
         private TaxonomySettings taxonomySettings;
         private ContentTypesConfig contentTypesConfig;
+        private ISPContentTypes spContentTypes;
         #endregion
 
         /// <summary>
@@ -64,6 +65,7 @@ namespace Microsoft.Legal.MatterCenter.Repository
         /// <param name="spoAuthorization"></param>
         /// <param name="generalSettings"></param>
         public SPList(ISPOAuthorization spoAuthorization,
+            ISPContentTypes spContentTypes,
             IOptions<CamlQueries> camlQueries, 
             IOptions<ErrorSettings> errorSettings,
             IOptions<SearchSettings> searchSettings,
@@ -88,6 +90,7 @@ namespace Microsoft.Legal.MatterCenter.Repository
             this.generalSettings = generalSettings.Value;
             this.taxonomySettings = taxonomySettings.Value;
             this.contentTypesConfig = contentTypesConfig.Value;
+            this.spContentTypes = spContentTypes;
         }
 
 
@@ -208,7 +211,7 @@ namespace Microsoft.Legal.MatterCenter.Repository
             return fileStream.Value;
         }
 
-        public GenericResponseVM UploadDocument(string folderPath, IFormFile uploadedFile, string fileName, Dictionary<string, string> mailProperties, string clientUrl, string folderName, string documentLibraryName)
+        public GenericResponseVM UploadDocument(string folderPath, IFormFile uploadedFile, string fileName, Dictionary<string, string> mailProperties, string clientUrl, string folderName, string documentLibraryName, MatterExtraProperties documentExtraProperites)
         {
             IList<string> listResponse = new List<string>();
             GenericResponseVM genericResponse = null;
@@ -231,7 +234,7 @@ namespace Microsoft.Legal.MatterCenter.Repository
                 }
                 if (genericResponse==null)
                 {
-                    SetUploadItemProperties(clientContext, documentLibraryName, fileName, folderPath, mailProperties);
+                    SetUploadItemProperties(clientContext, documentLibraryName, fileName, folderPath, mailProperties, documentExtraProperites);
                 }
                 
             }
@@ -453,38 +456,8 @@ namespace Microsoft.Legal.MatterCenter.Repository
             }
             return list;
         }
-        /// <summary>
-        ///  Creates a new view for the list
-        /// </summary>
-        /// <param name="clientContext">Client Context</param>
-        /// <param name="matterList">List name</param>
-        /// <param name="viewColumnList">Name of the columns in view</param>
-        /// <param name="viewName">View name</param>
-        /// <param name="strQuery">View query</param>
-        /// <returns>String stating success flag</returns>
-        public bool AddView(ClientContext clientContext, List matterList, string[] viewColumnList, string viewName, string strQuery)
-        {
-            bool result = true;
-            if (null != clientContext && null != matterList && null != viewColumnList && !string.IsNullOrWhiteSpace(viewName) && !string.IsNullOrWhiteSpace(strQuery))
-                try
-                {
-                    View outlookView = matterList.Views.Add(new ViewCreationInformation
-                    {
-                        Title = viewName,
-                        ViewTypeKind = ViewType.Html,
-                        ViewFields = viewColumnList,
-                        Paged = true
-                    });
-                    outlookView.ViewQuery = strQuery;
-                    outlookView.Update();
-                    clientContext.ExecuteQuery();
-                }
-                catch (Exception)
-                {
-                    result = false;
-                }
-            return result;
-        }
+
+        
 
         /// <summary>
         /// Method will check the permission of the list that has been provided
@@ -742,7 +715,8 @@ namespace Microsoft.Legal.MatterCenter.Repository
         /// <param name="fileName">Name of the file.</param>
         /// <param name="folderPath">Path of the folder.</param>
         /// <param name="mailProperties">The mail properties.</param>
-        public void SetUploadItemProperties(ClientContext clientContext, string documentLibraryName, string fileName, string folderPath, Dictionary<string, string> mailProperties)
+        public void SetUploadItemProperties(ClientContext clientContext, string documentLibraryName, string fileName, 
+            string folderPath, Dictionary<string, string> mailProperties, MatterExtraProperties matterExtraProperties)
         {
             try
             {
@@ -796,24 +770,40 @@ namespace Microsoft.Legal.MatterCenter.Repository
                                 }
                                 listItem[mailSettings.SearchEmailOriginalName] = !string.IsNullOrWhiteSpace(mailProperties[ServiceConstants.MAIL_ORIGINAL_NAME]) ? mailProperties[ServiceConstants.MAIL_ORIGINAL_NAME] : string.Empty;
                                 //Get all the fields of the document library to which document is getting uploaded.
-                                FieldCollection fields = GetMatterExtraDefaultSiteColumns(clientContext, selectedList);
-                                string contentTypeName = taxonomySettings.AdditionalMatterPropertiesContentTypeName;
-                                //Get all site columns that are present in 'Additional Matter Properties' content type.
-                                FieldCollection contentTypeFields = contentTypeName.GetFieldsInContentType(clientContext);
-                                if (fields != null && contentTypeFields != null && contentTypeFields.Count > 0)
+                                if (matterExtraProperties != null)
                                 {
-                                    foreach (var field in fields)
+                                    string contentTypeName = matterExtraProperties.ContentTypeName;
+                                    //Get all site columns that are present in 'Additional Matter Properties' content type.                                
+                                    spContentTypes.AssignContentType(clientContext, contentTypeName, selectedList);
+                                    FieldCollection contentTypeFields = contentTypeName.GetFieldsInContentType(clientContext);
+                                    FieldCollection fields = GetMatterExtraDefaultSiteColumns(clientContext, selectedList);
+                                    if (fields != null && contentTypeFields != null && contentTypeFields.Count > 0)
                                     {
-                                        foreach (var contentTypeField in contentTypeFields)
+                                        foreach (var field in fields)
                                         {
-                                            //If document library field name is part of content type field name 
-                                            //then update default value of tht column name to the value 
-                                            //of that column name.
-                                            if (field.InternalName == contentTypeField.InternalName)
+                                            foreach (var contentTypeField in contentTypeFields)
                                             {
-                                                if (field.Group == contentTypesConfig.OneDriveContentTypeGroup)
+                                                //If document library field name is part of content type field name 
+                                                //then update default value of tht column name to the value 
+                                                //of that column name.
+                                                if (field.InternalName == contentTypeField.InternalName)
                                                 {
-                                                    listItem[field.InternalName] = field.DefaultValue;
+                                                    if (field.Group == contentTypesConfig.OneDriveContentTypeGroup)
+                                                    {
+                                                        string fieldValue = string.Empty;
+                                                        if (matterExtraProperties != null && matterExtraProperties.Fields.Count > 0)
+                                                        {
+                                                            foreach (var extraProp in matterExtraProperties.Fields)
+                                                            {
+                                                                if (extraProp.FieldName == field.InternalName)
+                                                                {
+                                                                    fieldValue = extraProp.FieldValue != null && extraProp.FieldValue != string.Empty ? extraProp.FieldValue : field.DefaultValue;
+                                                                }
+                                                            }
+                                                        }
+
+                                                        listItem[field.InternalName] = fieldValue != string.Empty ? fieldValue : field.DefaultValue;
+                                                    }
                                                 }
                                             }
                                         }
@@ -835,13 +825,15 @@ namespace Microsoft.Legal.MatterCenter.Repository
             }
         }
 
+        
+
         /// <summary>
         /// This method will get all the List columns of the selected list.
         /// </summary>
         /// <param name="clientContext"></param>
         /// <param name="selectedList"></param>
         /// <returns></returns>
-        private FieldCollection GetMatterExtraDefaultSiteColumns(ClientContext clientContext, List selectedList)
+        public FieldCollection GetMatterExtraDefaultSiteColumns(ClientContext clientContext, List selectedList)
         {
             try
             {
@@ -1048,22 +1040,23 @@ namespace Microsoft.Legal.MatterCenter.Repository
         {
             try
             { 
+               List<string> existingLists = new List<string>();
                 using (ClientContext clientContext = spoAuthorization.GetClientContext(client.Url))
                 {
-                    List<string> existingLists = new List<string>();
-                    if (null != clientContext && null != listsNames)
+                    foreach (string listName in listsNames)
                     {
-                        //ToDo: Chec
-                        ListCollection lists = clientContext.Web.Lists;
-                        clientContext.Load(lists);
+                        ListCollection listCollection = clientContext.Web.Lists;
+                        clientContext.Load(listCollection, lists => lists.Include(list => list.Title).Where(list => list.Title == listName));
                         clientContext.ExecuteQuery();
-                        existingLists = (from listName in listsNames
-                                         join item in lists
-                                         on listName.ToUpper(CultureInfo.InvariantCulture) equals item.Title.ToUpper(CultureInfo.InvariantCulture)
-                                         select listName).ToList();
+                        if (listCollection.Count > 0)
+                        {
+                            existingLists.Add(listName);
+                            break;
+                        }                        
                     }
-                    return existingLists;
                 }
+                return existingLists;
+
             }
             catch (Exception ex)
             {
